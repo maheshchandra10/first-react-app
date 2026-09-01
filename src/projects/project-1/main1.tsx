@@ -1,11 +1,11 @@
 import Image from "./image";
 import Details from "./details";
 import Footer from "./footer";
-import "./container.css";
-import { useEffect, useState } from "react";
+import "./main1.css";
+import { useState } from "react";
 import Like from "./like";
 
-export default function Container() {
+export default function Main1() {
     const name: string = 'Avril Lavigne';
     const designation: string = 'Singer';
     const email: string = 'avrillavigne@rocknroll.com';
