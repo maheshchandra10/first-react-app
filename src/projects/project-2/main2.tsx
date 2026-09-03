@@ -1,9 +1,11 @@
+import { useEffect, useState } from "react";
 import Back from "./back";
 import UserCard from "./user-cards";
 import UserProfile from "./user-profile";
 import UserSearch from "./user-search";
+import Greeting from "./greeting";
 
-const users = [
+const totalUsers = [
     {
         name: "Rahul Sharma",
         age: 29,
@@ -13,8 +15,8 @@ const users = [
         employeeId: "EMP-1924",
     },
     {
-        name: "Mallika Sherawat",
-        age: 39,
+        name: "Zendaya Holland",
+        age: 31,
         designation: "Actress",
         gender: "Female",
         phoneNumber: "+91 98765 48760",
@@ -68,16 +70,55 @@ const users = [
         phoneNumber: "+91 98765 22770",
         employeeId: "EMP-1000",
     },
-] 
+]
+
+type User = {
+    name: string;
+    age: number;
+    designation: string;
+    gender: string;
+    phoneNumber: string;
+    employeeId: string;
+};
 
 export default function Main2() {
 
-    const showUserProfile = false;
+    const [currentUser, setCurrentUser] = useState<User | null>(null); // dont initialize with {}, because Boolean({}) = true
+    const [search, setSearch] = useState<string>('');
+    const [isGreeting, setIsGreeting] = useState(true);
+    
+    const users = totalUsers.filter(user =>
+        user.name.toLowerCase().includes(search.trim().toLowerCase())
+    );
+    
+    useEffect(() => {
+            setTimeout(() => {
+                setIsGreeting(false);
+            }, 2000);
+        }, []
+    ); //usually similar to ngOnInit() if the 2nd param is kept [], like here.
+
+    function onCardClick(employeeId: string) {
+        const user = totalUsers.find(user => user.employeeId === employeeId);
+        if (user) {
+            setCurrentUser(user);
+        }
+    }
+
+    function onBackClick() {
+        setSearch('');
+        setCurrentUser(null);
+    }
+
+    function onSearch(event) {
+        setSearch(event.target.value.trim().toLowerCase());
+    }
 
     return (
         <main className="min-h-screen bg-gray-50 px-4 py-8 sm:px-6 lg:px-8">
+            {isGreeting && <Greeting />}
             <div className="mx-auto max-w-7xl">
-                {!showUserProfile ? (
+                {!currentUser ? (
                     <>
                         {/* Page Header */}
                         <div className="mb-8">
@@ -90,11 +131,11 @@ export default function Main2() {
                         </div>
                         {/* Search */}
                         <div className="mb-8 flex justify-center">
-                            <UserSearch />
+                            <UserSearch onSearch={onSearch} />
                         </div>
                         {/* Cards */}
                         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                            <UserCard users={users} />
+                            <UserCard users={users} onCardClick={onCardClick} />
                         </div>
                     </>
                 )
@@ -102,10 +143,10 @@ export default function Main2() {
                     (
                         <>
                             {/* Back Button */}
-                            <Back />
+                            <Back onBackClick={onBackClick} />
                             {/* Profile */}
                             <div className="flex justify-center">
-                                <UserProfile user={users} />
+                                <UserProfile user={currentUser} />
                             </div>
                         </>
                     )}

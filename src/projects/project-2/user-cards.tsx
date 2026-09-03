@@ -1,9 +1,9 @@
-const UserCard = ({ users }) => {
+const UserCard = ({ users, onCardClick }) => {
     return (
         <>
             {
                 users.map((user, index) => (
-                    <div className="w-full overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-lg cursor-pointer">
+                    <div key={user.employeeId} onClick={() => onCardClick(user.employeeId)} className="w-full overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-lg cursor-pointer">
                         {/* Card Header */}
                         <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-5 text-white">
                             <div className="flex items-center gap-4">
