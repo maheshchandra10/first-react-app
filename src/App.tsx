@@ -1,11 +1,11 @@
-import Main1 from "./projects/project-1/main1";
-import Main2 from "./projects/project-2/main2";
+import { RouterProvider } from "react-router";
+import { router } from "./app.routes";
 
 export default function App() {
   return (
-    <>
-      {/* <Main1 /> */}
-      <Main2 />
-    </>
+    <RouterProvider router={router}/>
   );
 }
+
+//instead of directly invoking a component, invoke any component based on the route, so rather invoke the route component which 
+//you have created, here <AppRoutes />
