@@ -2,6 +2,9 @@ import { RouterProvider } from "react-router";
 import { router } from "./app.routes";
 
 export default function App() {
+
+  console.log('App (re)rendered');
+
   return (
     <RouterProvider router={router}/>
   );

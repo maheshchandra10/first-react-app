@@ -94,7 +94,7 @@ export default function Main2() {
     useEffect(() => {
             setTimeout(() => {
                 setIsGreeting(false);
-            }, 2000);
+            }, 500);
         }, []
     ); //usually similar to ngOnInit() if the 2nd param is kept [], like here.
 
