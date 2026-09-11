@@ -57,3 +57,55 @@ export default function Main3() {
         </main >
     );
 }
+
+
+//Not related to React, but a general idea-
+//Any questions like- something is slow; something is taking time; how will you debug this that?
+//Try to follow this approach in your answer-
+//1. I will first reproduce the issue to measure the extent of the issue (which part is slow and taking time).
+//2. I will also check logs (production logs) for any ambiguity.
+//3. Then I will determine from where the issue (latency, slowness etc) is coming- frontend (UI), network (Response time, Payload size, Number of requests), API (backend), database.
+//4. Once I get hold of the source of the issue, I will rectify it using- <throw optimzation techniques based on the source of the issue IF the solution is not too obvious>. For example if the issue is from UI, throw react/angular optimization terms, recent code etc.
+//5. I will then do the impact analysis of the recitification change, add monitoring, then deploy it.
+//6. I will measure again if the issue is actually fixed.
+
+
+// Is the browser slow?
+//        ↓
+// Is the API slow?
+//        ↓
+// Is the backend processing slow?
+//        ↓
+// Is the database slow?
+//        ↓
+// Where exactly is the time being spent?
+
+
+// Reproduce to Measure the extent
+//    ↓
+// Check logs
+//    ↓
+// Identify where failure occurs to narrow the scope
+//    ↓
+// Check inputs/config/environment
+//    ↓
+// Form hypothesis
+//    ↓
+// Test hypothesis
+//    ↓
+// Fix with smallest appropriate change
+//    ↓
+// Measure again
+//    ↓
+// Add test/monitoring to prevent recurrence
+
+
+//How to debug an issue in the database:
+//review the query (SELECT, JOIN, WHERE etc)
+//whether the query is retrieving more data than necessary
+//whether unnecessary filtering or joins are happening in the query
+//whether appropriate index is there, or whether indexes are used or not
+//recent code/query changes
+
+//need to check the actual use case of useReducer
+//need to practice via code also about useMemo, useCallback, React.memo

@@ -10,6 +10,7 @@ const AddUser = () => {
     const renders = useRef(0);
     renders.current++; //ignore the error for this time....
 
+    const countRef = useRef(0);
     const [count, setCount] = useState(0);
     const [buttonLabel, setButtonLabel] = useState('Add User');
     const [errors, setErrors] = useState({
@@ -62,6 +63,8 @@ const AddUser = () => {
         setCount(count + 1); //render 'count' 0, React's internal 'count' 0 + 1 = 1
         setCount(countt => countt + 1); //render 'count' 0, React's internal 'count' 1 + 1 = 2
         //increment per click = +2
+        countRef.current++;
+        console.log(countRef.current); //notice how the Ref has the lastest updated value in the existing render, unlike a State
     }
 
     const formAction = (formData: FormData) => {
@@ -484,3 +487,24 @@ export default AddUser;
 // Boolean([])         // true  (!remember this)
 // Boolean({})         // true  (!remember this)
 
+
+//About useRef: Ref values survive component rerenders just like States. Change in the value of a Ref (<someRef>.current) does not trigger rerender of the component, unlike States.
+//And since it doesn't trigger a rerender, a Ref will always have its latest updated value even in the existing render, unlike States.
+//Ref values (<someRef>.current) are not used in the return body of the component. It is a hook that is used for values that are not needed for rendering something on the UI.
+//But one important thing is that the Ref itself can be used inside the return body of a component for various purpose, but the actual value (<someRef>.current) is not.
+//For example: 
+//<input ref={inputRef} /> //notice how only the Ref (inputRef) is being used here, not its value (inputRef.current).
+//But you won't notice the actual value (<someRef>.current) being used anywhere in the return body.
+
+//If we want to bind a variable value to an object property, we can simply do-
+//obj = {...obj, name: <variable-name>}
+//for example, 
+// const nameV = 'Mahesh';
+// let user = {name: '', age: ''};
+// user = {...user, name: nameV};
+// console.log(user);
+// But what if the property name itself has to binded with a variable value? then:
+// const propertyName = 'name';
+// user = {...user, [propertyName]: nameV};
+// console.log(user);
+// you have to use [propertyName].
