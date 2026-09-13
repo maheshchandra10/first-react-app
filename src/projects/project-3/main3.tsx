@@ -53,6 +53,13 @@ export default function Main3() {
                 <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                     <UserCard users={users} />
                 </div>
+                <div className="flex justify-center p-10">
+                    <Link to={`view-random-user`}
+                        className="rounded-full bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                    >
+                        View a random user from internet
+                    </Link>
+                </div>
             </div>
         </main >
     );

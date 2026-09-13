@@ -1,9 +1,28 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 const UserProfile = ({ employeeId, user }) => {
 
+    const [count, setCount] = useState(0);
+
+    // useEffect(()=> {
+    //     console.log('inside useEffect');
+    //     const i = setInterval(() => {
+    //         console.log('setInterval running');
+    //         setCount(count + 1);
+    //     }, 1000);
+
+    //     return () => {
+    //         clearInterval(i);
+    //     }
+
+    // }, [count]);
+    //or
     useEffect(()=> {
         console.log('inside useEffect');
+        setInterval(() => {
+            console.log('setInterval running');
+            setCount(prevCount => prevCount + 1);
+        }, 1000);
     }, []);
 
     console.log('inside component function');
@@ -128,7 +147,11 @@ const UserProfile = ({ employeeId, user }) => {
                     </div>
                 </section>
             </div>
+        <div>
+            <p>Count: {count}</p>
         </div>
+        </div>
+        
     );
 };
 
@@ -137,3 +160,20 @@ export default UserProfile;
 
 //see the above 2 console logs. The console log written outside useEffect() prints first, then the one inside useEffect().
 //This is because React first needs to produce the UI. Render first, then effect.
+
+//Closure:
+//A function that has an access to a variable belonging to the render in which that function was created.
+
+// Stale Closure:
+// const [count, setCount] = useState(0);
+// useEffect(()=> {
+//         setInterval(() => {      //here this callback receives count as 0 when it is created. Even though setInterval will call the callback every 1 sec, it will call the same callback which was created first time.
+//             console.log('setInterval running');
+//             setCount(count + 1);
+//         }, 1000);
+//     }, 
+// []);
+
+//Here, the interval will run at every 1 sec, but it won't increase the count value as expected here. 
+// This is because the count value the callback of setInterval executes is the same everytime, the one it received during the first time, which was 0.
+//This is called Stale Closure.

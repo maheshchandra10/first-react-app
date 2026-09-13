@@ -85,3 +85,7 @@ const UserCard = ({ users }) => {
 };
 
 export default UserCard;
+
+
+//When rendering a dynamic list using map(), 'key' tells React which rendered item is which across multiple renders.
+//Stable IDs are generally preferred over array indexes.

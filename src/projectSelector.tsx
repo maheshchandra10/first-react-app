@@ -7,7 +7,7 @@ import { ThemeContext } from "./ThemeContext";
 
 export default function ProjectSelector() {
 
-    const [lightTheme, setLightTheme] = useState(true);
+    const [lightTheme, setLightTheme] = useState(false);
 
     console.log('Header (re)renders');
 
@@ -54,3 +54,16 @@ export default function ProjectSelector() {
 
 
 //try not to have <Outlet /> inside any condition.
+
+//Virtul DOM: React uses a Virtual DOM to efficiently determine what needs to be changed in the UI and update the actual DOM accordingly.
+//It determine what, how and when to render something on the screen.
+
+// React Rendering Steps:
+// 1. State/props change: When the state or props of a React component change, React schedules a re-render of that component.
+// 2. Virtual DOM: During the re-render, React creates a new Virtual DOM representation of the UI.
+// 3. Diffing: React compares the new Virtual DOM representation with the previous Virtual DOM representation (from the previous render) to determine what has changed.
+// 4. Reconciliation: React determines the minimal set of changes needed and applies those changes to the real DOM.
+// 5. Browser Update: Once the real DOM is updated, the browser renders the updated UI on the screen.
+
+// In short:
+// State/Props Change → Re-render → New Virtual DOM → Diffing → Reconciliation → Real DOM Update → Browser Paint

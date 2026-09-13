@@ -2,6 +2,7 @@ import type { RouteObject } from "react-router";
 import Main3 from "./main3";
 import UserProfileLayout from "./user-profile-layout";
 import AddUser from "./add-user";
+import RandomUser from "./random-user";
 
 export const main3Routes: RouteObject = {
     path: 'users-with-routing',
@@ -18,6 +19,10 @@ export const main3Routes: RouteObject = {
         {
             path: 'add',
             element: <AddUser />
+        },
+        {
+            path: 'view-random-user',
+            element: <RandomUser />
         }
     ]
 }

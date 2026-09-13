@@ -38,7 +38,7 @@ export default function Main1() {
 }
 
 
-//A prop name cannot be 'key' or 'children'. Both of these are reserved by React. It will give an error!
+//A prop name cannot be 'key' or 'children'. Both of these props are reserved by React, as in built-in props. It will give an error!
 
 
 

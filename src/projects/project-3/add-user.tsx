@@ -398,6 +398,19 @@ const AddUser = () => {
 
 export default AddUser;
 
+//Never ever will you use a setState function inside the component function body, because it will trigger infinite renders-
+// Component mounts -> sees the setState -> triggers component rerender -> sees the setState again -> triggers rerender again ->..........
+
+//setState function being called is not the actual reason a rerender is triggered. It is the change in the value of the state which does that.
+//Because if setState is called with the same value (primitive- number, string or boolean), it WILL NOT trigger a rerender.
+//Example-
+//const [age, setAge] = UseState(32);
+//someEventHandler() {
+    //setAge(32);
+// }
+//Here setAge is called to set the value of age to 32, which it already has 32 as the value. Thus the component won't rerender because of this.
+//But this is only true for primitive values, not for objects and arrays. Primitive values are passed by values, while objects and arrays are passed by reference.
+
 
 //did you know? if a label has a "for" attribute, it will focus the input with the corresponding id when clicked. This is useful for accessibility and user experience.
 //buttons, if placed inside a form, it will have input type="submit" by default. This means that clicking the button will submit the form.
