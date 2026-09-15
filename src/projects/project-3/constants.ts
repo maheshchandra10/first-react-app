@@ -74,4 +74,4 @@ export const totalUsers: User[] = [
         phoneNumber: "+91 98765 22770",
         employeeId: "EMP-1000",
     },
-] 
+] as const;

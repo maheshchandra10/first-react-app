@@ -184,3 +184,30 @@ const RandomUser = () => {
 };
 
 export default RandomUser;
+
+
+// types vs interface:
+
+//syntax:
+// type user = {        //there's an assignment here. We assign an object to a type alias
+//     name: string;
+//     age: number;
+// }
+// interface user {     //no assignment here
+//     name: string;
+//     age: number;
+// }
+
+// With interface, you can only describe an object.
+//Let's say I want to describe a url as type URL-> const url: URL = 'abc.com';
+//with type -> type URL = string;
+//with interface -> interface URL {
+//     url: string;
+// }
+//But this is describing an object, which we don't want. We want a simple string variable.
+//So it will work only for-
+// const url: URL = {
+//     url: 'abc.com'
+// }
+
+//Therefore, try to use type alias by default.

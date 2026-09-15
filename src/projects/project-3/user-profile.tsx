@@ -1,6 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, memo } from "react";
+import type { User } from "./constants";
 
-const UserProfile = ({ employeeId, user }) => {
+type UserProfileProps = {
+    employeeId: string | null | undefined;
+    user: User;
+}
+
+const UserProfile = memo(function UserProfile({ employeeId, user }: UserProfileProps) {
 
     const [count, setCount] = useState(0);
 
@@ -17,7 +23,7 @@ const UserProfile = ({ employeeId, user }) => {
 
     // }, [count]);
     //or
-    useEffect(()=> {
+    useEffect(() => {
         console.log('inside useEffect');
         setInterval(() => {
             console.log('setInterval running');
@@ -147,13 +153,12 @@ const UserProfile = ({ employeeId, user }) => {
                     </div>
                 </section>
             </div>
-        <div>
-            <p>Count: {count}</p>
+            <div>
+                <p>Count: {count}</p>
+            </div>
         </div>
-        </div>
-        
     );
-};
+});
 
 export default UserProfile;
 
@@ -171,9 +176,29 @@ export default UserProfile;
 //             console.log('setInterval running');
 //             setCount(count + 1);
 //         }, 1000);
-//     }, 
+//     },
 // []);
 
-//Here, the interval will run at every 1 sec, but it won't increase the count value as expected here. 
+//Here, the interval will run at every 1 sec, but it won't increase the count value as expected here.
 // This is because the count value the callback of setInterval executes is the same everytime, the one it received during the first time, which was 0.
 //This is called Stale Closure.
+
+
+//React.memo:
+//Syntax:
+//Take the entire component function.
+//Put it inside the first function argument of memo() -> memo(<entire component function>);
+//assign this memo function to a const <component-name>.
+//For a good practice, keep the name of the const <component-name> same as the component function named which you just put inside memo().
+//The actual component function name will be the name of the const, not the inner function name. Here const 'UserProfile'.
+
+//The name of the inner function can be useful for things like React DevTools/debugging and stack traces,
+//but it doesn't determine how you reference the component in JSX.
+
+//You can also make the inner function anonymous:
+// const Child = memo(function ({...}) {
+//     return (
+//         <>
+//         </>
+//     );
+// });

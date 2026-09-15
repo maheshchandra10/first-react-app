@@ -431,13 +431,14 @@ export default AddUser;
 
 //setInterval(...)
 // fetch(...)
-// document.addEventListener(...)
-// setTimeout(...)
-//These are called side-effects. You should not put things like this directly in the component body, because they'll execute again on every render,
+// document.addEventListener(...), window.addEventListener(...)
+// setTimeout(...), setInterval(...)
+//localStorage, sessionStorage
+//These are called Side-Effects. You should not put things like this directly in the component body, because they'll execute again on every render,
 //creating a new one on every render.
 //These can be put in UseEffect(), or inside a function-
 //useEffect(() => {
-// side effect
+//  side effect
 // });
 
 //Here, 'component body' means-
