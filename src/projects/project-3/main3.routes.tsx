@@ -3,6 +3,7 @@ import Main3 from "./main3";
 import UserProfileLayout from "./user-profile-layout";
 import AddUser from "./add-user";
 import RandomUser from "./random-user";
+import RandomUsers from "./basic-fetch";
 
 export const main3Routes: RouteObject = {
     path: 'users-with-routing',
@@ -23,6 +24,10 @@ export const main3Routes: RouteObject = {
         {
             path: 'view-random-user',
             element: <RandomUser />
+        },
+        {
+            path: 'view-random-users',
+            element: <RandomUsers />
         }
     ]
 }

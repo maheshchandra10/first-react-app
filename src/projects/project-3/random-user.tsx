@@ -211,3 +211,25 @@ export default RandomUser;
 // }
 
 //Therefore, try to use type alias by default.
+
+
+//About useEffect and network call inside it:
+//The function passed to useEffect is expected to either:
+//return nothing
+// or 
+// return a cleanup function.
+//But an async function always returns a Promise.
+//Try to have this-
+// useEffect(() => cleanupFunction | undefined, []);
+// So dont write useEffect like this-
+// useEffect(async () => {  //don't make the callback async
+  // ...
+// }, []);
+
+//Do this-
+// useEffect(() => {
+//   async function loadUsers() { //create an async function inside useEffect callback
+//     async work like network call
+//   }
+//   loadUsers();       //invoke it immediately
+// }, []);
