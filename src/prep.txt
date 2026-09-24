@@ -1,0 +1,2181 @@
+
+
+| Callback                   |       Queue      |   Queue owner   | Who schedules it on the Call Stack for execution? |
+| -------------------------- |------------------| --------------- | ------------------------------------------------- |
+| Macrotask (I/O, timer)     | Macrostask queue | libuv           | Event Loop                                        |
+| Microtask (Promises)       | Microtask queue  | V8 Engine       | V8 Engine                                         |
+| (Promise.then(), await)                                                                                             |     
+| nextTick()                 |  nextTick queue  | Node.js         | Node.js                                           |
+| (a special microtask)                                                                                               |
+
+The Call Stack itself is managed by the JavaScript's V8 Engine.
+
+------------------------------------------------------------------------------------------------
+
+JavaScript:
+synchronous; blocking; single-threaded programming language
+
+Node.js:
+Node.js is an open-source, cross-platform, JavaScript runtime environment.
+It is a tool that allows you to run JavaScript outside of the browser on the server-side.
+It has event-driven, non-blocking, asynchronous architecture.
+
+Event-driven architecture:
+Instead of constantly checking whether something has happened,
+Node.js waits for events to occur and then runs the appropriate callback/handler when they occur.
+The event can be an incoming http request, completing http request, a timer, completion of the DB operation etc;
+mostly completion of an operation. But a lot of times start of an operation can be an event too.
+
+Synchronous programming:
+Tasks execute one after another 'sequentially'.
+The next task has to wait for the current task to be completed, because the program is blocked performing the current task.
+Poor performance.
+
+Asynchronous programming:
+Tasks execute 'concurrently' without blocking other tasks.
+
+How does Node.js achieve asynchronous programming?
+Using its event-driven, non blocking i/o architecture.
+
+How to handle asynchronous operations?
+Callbacks, promises, async await
+
+------------------------------------------------------------------------------------------------
+
+Event Loop
+
+Event Loop is a design pattern that orchestrates or coordinates the execution of synchronous & asynchronous code in Node.js.
+The Event Loop is a loop that runs continuously as long as the Node.js application is up and running, handling multiple operations executing concurrently.
+(The event loop keeps checking for work that is ready to execute and schedules that work to the JavaScript Call Stack IF it is empty)
+
+Asynchronous code execution in Node.js with Event Loop:
+1. The main thread of execution always starts in the global scope. The global function is pushed onto the Call Stack.
+2. Asynchronous operation encountered in the global function are off-loaded to libuv.
+3. Once the asynchronous operation is completed and its callback is eligible to be executed,
+   Event Loop schedules it on to the Call Stack based on certain priorities, for the main thread to execute it and pop it off.
+4. When there's no more code to run, the global function is also popped off the Call Stack.
+
+Event Loop Queues:
+There are 6 different queues in every loop,
+each holding one or more callback functions that need to be executed on the Call Stack eventually.
+
+1. Timer Queue (part of libuv):
+Holds callbacks associated with setTimeout() and setInterval().
+
+2. I/O Queue (part of libuv):
+Contains callbacks associated with all the async methods such as methods associated with the fs and http modules.
+
+3. Check Queue (part of libuv):
+Holds callbacks associated with the setImmediate() function.
+
+4. Close Queue (part of libuv):
+Holds callbacks associated with the close event of an async task (socket.on('close', ...), etc).
+
+5. nextTick Queue (part of Node.js core):
+Holds callbacks associated with the process.nextTick() function.
+
+6. Promise Queue (part of V8 Engine): 
+Holds callbacks associated with the native Promise in JavaScript.
+
+   nextTick Queue & Promise Queue are both known as Microtask Queues. 
+
+
+How Event Loop works
+
+The priority order of the queues:
+
+0. First, all user-written synchronous JavaScript code takes priority over async code.
+   This means that only after the Call Stack is empty does the Event Loop come into play.
+
+1. Any callbacks in the Microtask Queues are executed.
+      First, tasks in the nextTick Queue, and only then tasks in the Promise Queue.
+2. All callbacks within the Timer Queue are executed (Timers Phase). -> but may not execute continuously one-after-another because of the Microtask Queues priority (see the next pointer)
+      These represent expired timer callbacks that are now ready to be processed.
+3. Callbacks in the Microtask Queues (if present) are executed after every callback in the Timer Queue.
+      First, tasks in the nextTick Queue, and then tasks in the Promise Queue.
+4. All callbacks within the I/O Queue are executed (Poll Phase).   -> but may not execute continuously one-after-another because of the Microtask Queues priority
+5. Callbacks in the Microtask Queues (if present) are executed after every callback in the I/O Queue.
+      First, tasks in the nextTick Queue, and then tasks in the Promise Queue.
+6. All callbacks in the Check Queue for the setImmediate() function are executed (Check Phase). -> but may not execute continuously one-after-another because of the Microtask Queues priority
+7. Callbacks in the Microtask Queues (if present) are executed after every callback in the Check Queue.
+      First, tasks in the nextTick Queue, and then tasks in the Promise Queue.
+8. All callbacks in the Close Queue are executed (Close Callbacks Phase).   -> but may not execute continuously one-after-another because of the Microtask Queues priority
+9. For one final time in the same loop, the Microtask Queues are executed after every callback in the Close Queue.
+      First, tasks in the nextTick Queue, and then tasks in the Promise Queue.
+
+Note: The Event Loop moves through these phases, but whether callbacks are actually processed in a phase depends on what's ready,
+      and the Poll Phase has special behavior around wait-time for I/O (eg the callback of setTimeout(..., 5000) will be eligible after atleast 5 secs of waiting).
+
+If there are more callbacks to be processed at this point, the loop is kept alive for one more run, and the same steps are repeated.
+On the other hand, if all callbacks are executed and there is no more code to process, the Event Loop exits.
+
+After each callback (from no matter which Phase): Tasks in the nextTick Queue -> tasks in the Promise Queue
+
+Timers Phase -> Poll Phase -> Check Phase -> Close Callbacks Phase
+(More callbacks? Repeat the loop)
+
+Complete Phases:
+Timers Phase -> Pending Callbacks Phase -> Idle, Prepase Phase -> Poll Phase -> Check Phase -> Close Callbacks Phase
+
+Pending Callbacks Phase: Executes callbacks for some system operations
+Idle, Prepare Phase: Internal Node.js/libuv preparation work before the Poll Phase.
+
+Few asynchronous operations categorized as per priority:
+process.nextTick()                     → nextTick Queue
+Promise.then()/.catch()                → Promise Queue
+setTimeout()/setInterval()             → Timers Queue
+fs / network/ I/O                      → Poll Queue
+setImmediate()                         → Check Queue
+socket.on("close",...)/server.close()  → Close Callbacks Queue
+
+------------------------------------------------------------------------------------------------
+
+Callback Hell:
+A situation where deeply nested callbacks make code difficult to read, maintain, error-prone and debug.
+Sequential asynchronous tasks relying on the results of previous tasks.
+Solution: promises .then().catch(), async await
+
+package.json:
+Contains the details, settings, dependencies of a project.
+It helps node.js know how to run the project, and what tools it needs to run the project.
+
+Express.js:
+Express.js is a Node.js web framework built on top of Node.js. It enhances the features of Node.js by providing features like routing,
+middleware, request/response handling etc.
+
+V8 Engine:
+The V8 Engine is Google's high-performance JavaScript engine that power both Chrome and Node.js. It uses just-it-time compilation.
+
+libuv:
+libuv is a cross-platform C library that supports Node.js's asynchronous i/o operations,
+and implements the concept of Event Loop and Thread Pool.
+It is responsible for handling asynchronous methods.
+Whenever we execute an asynchronous task, libuv takes over the execution of the task.
+   libuv then runs the task using native asynchronous mechanisms of the operating system.
+   In case the native mechanisms are not available or inadequate, it utilizes its Thread Pool to run the task,
+   ensuring that the main thread is not blocked.
+   
+Node Package Manager (npm):
+Default package manager for Node.js.
+
+Streams in Node.js:
+Streams is a mechanism of reading/writing data in continuous chunks rather than loading everything into memory at once,
+improving performance and memory efficiency for large files.
+Buffer: A fixed-size chunk of raw binary data used for handling bindary content like images, videos etc efficiently
+
+Clusters:
+Clusters in Node.js are multiple instances of a Node.js application running as separate worker processes across multiple CPU cores,
+allowing the application to utilize multiple CPU cores and handle more requests concurrently.
+Each cluster has its own Event Loop and memory.
+It handles more 'concurrent' tasks efficiently by distributing incoming requests.
+Clustering gives you:
+             Incoming requests
+                    ↓
+             ┌─────────────┐
+             │ Distribution│
+             └──────┬──────┘
+                    ↓
+       ┌────────────┼────────────┐
+       ↓            ↓            ↓
+    Worker 1     Worker 2     Worker 3
+    Event Loop   Event Loop   Event Loop
+Now different workers can execute JavaScript on different CPU cores.
+A Thread is a unit within a Process.
+
+Worker Threads:
+Worker Threads in Node.js allow you to run JavaScript code in separate threads within the same Node.js process.
+They enable 'parallel' execution of tasks in separate threads.
+Node.js Process
+│
+├── Main Thread → Event Loop
+│
+├── Worker Thread for heavy calculation
+│
+└── Worker Thread for heavy calculation
+
+Memory Leak in Node.js:
+Memory leaks occur when Node.js application retains references to unused objects, preventing garbage collection and gradually
+consuming more and more memory overtime.
+Identify them using Heap Snapshots, or by inspecting requests in network tab.
+
+Thread Pool executes CPU-intensive tasks offloaded to it by the Event Loop.
+It can handle 4 CPU-intensive tasks parallely at once by default.
+Threads in Thread Pool: minimum 4, maximum 128
+Variable that stores the number of Threads in the Thread Pool: process.env.UV_THREADPOOL_SIZE -> 4
+To increase/decrease the number of Threads in a Thread Pool, write ->
+process.env.UV_THREADPOOL_SIZE = <number of threads>;
+process.env.UV_THREADPOOL_SIZE = 10; or process.env.UV_THREADPOOL_SIZE = 2;
+
+Security best practices in Node.js:
+express-validator middleware, helmet middleware, dotenv to store env variables, JWT, CSRF token, express-rate-limit middleware, npm audit
+
+------------------------------------------------------------------------------------------------
+
+If the answer to a question is-
+to avoid redundancy, the following points automatically come with it-
+Avoid duplication (already mentioned above)
+Consistency — the same rules are applied across features
+Maintainability — changes happen in one place
+Scalability — Easy to scale
+Separation of concerns — focus on business logic where required
+No single point of failure — if something else fails, this won't fail as the result, or if this fails, other things will not as the result
+
+------------------------------------------------------------------------------------------------
+
+async function
+     ↓
+automatically returns a Promise
+
+normal function
+     ↓
+may return anything, including a Promise
+
+async isn't what makes a function capable of returning a Promise. 
+It's a special function modifier that guarantees its return value is Promise-based.
+
+------------------------------------------------------------------------------------------------
+
+await unwraps the fulfilled Promise.
+const data = await fetch('/data');
+Here, data is already unwrapped to be a normal variable or an object. No need to do something like- data.then((res) => console.log(res));
+
+------------------------------------------------------------------------------------------------
+
+Closure:
+A closure allows a function to access (and retain the access) to variables from its surrounding lexical scope even after that outer function has finished.
+
+------------------------------------------------------------------------------------------------
+
+Currying:
+Currying is the technique of transforming/converting a function that takes multiple arguments into a sequence of functions, each taking one argument.
+
+Normal function:
+function add(a, b, c) {
+return a + b + c;
+}
+add(1, 2, 3); // 6
+
+Curried version:
+function add(a) {
+  return function(b) {
+    return function(c) {
+      return a + b + c;
+    };
+  };
+}
+add(1)(2)(3); // 1 + 2 + 3 = 6
+
+Each function remembers the value passed to it through Closure.
+
+Example:
+
+Normal function:
+function multiply(a, b) {
+  return a * b;
+}
+
+Curried function:
+function multiply(a) {
+  return function(b) {
+    return a * b;
+  };
+}
+
+const double = multiply(2);
+const triple = multiply(3);
+
+double(5); // 2 * 5 = 10
+triple(5); // 3 * 5 = 15
+
+The curried version of the function allows us to 'partially' apply arguments.
+const double = multiply(2); -> At this point, multiply(2) hasn't calculated anything yet.
+It returns:
+function(b) {
+  return 2 * b;
+}
+and assigns it to double ->
+const double = function(b) {
+  return 2 * b;
+}
+
+Then: double(5); -> 
+function(5) {
+  return 2 * 5;
+}
+= 10
+
+------------------------------------------------------------------------------------------------
+
+'this' keyword:
+'this' is a special keyword that refers to the object associated with the current function call.
+'this' is determined by how a function is called, not where the function was defined.
+
+------------------------------------------------------------------------------------------------
+
+Regular function vs Arrow function:
+
+The biggest difference is how 'this' works in both the types of function.
+
+Regular function:
+A regular function gets its own 'this' depending on how the function is called.
+
+const user = {
+  name: "Mahesh",
+  greet: function () {
+    console.log(this.name);
+  }
+};
+user.greet(); // Mahesh
+
+Arrow function:
+An arrow function doesn't create its own 'this'.
+It takes 'this' from the surrounding lexical scope.
+
+const user = {
+  name: "Mahesh",
+  greet: () => {
+    console.log(this.name);
+  }
+};
+user.greet(); // usually undefined
+
+Advantage of Arrow functions over Regular functions:
+1. Arrow functions not creating their own 'this' is the biggest advantage of Arrow functions over Regular functions.
+      In callbacks where an arrow function is used, you can use 'this' to refer the object from the surrounding lexical scope.
+      Imagine all the array functions (array.map()/filter()/find()/findIndex()) in Angular. They all use arrow functions for their operation.
+      And you can refer the class properties using this.<variable-name> inside these arrow functions.
+2. No own 'arguments':
+   function foo(arg1, arg2) {
+      console.log(arguments); //['hello', 'world']
+   }
+   foo("hello", "world");  vs
+   const foo = (arg1, arg2) => {
+      console.log(arguments); // ❌
+   };
+   foo("hello", "world");
+   The arrow function doesn't create its own 'arguments'.
+3. Shorter syntax
+
+Real use-case advantage of an Arrow function over a Regular function:
+
+In Angular, consider a regular function inside find():
+export class UserComponent {
+  users = [
+    { id: 1, name: 'Amit' },
+    { id: 2, name: 'Rahul' }
+  ];
+
+  selectedUserId = 2;
+
+  findUser() {
+    const user = this.users.find(function(user) {  -> a regular function
+      return user.id === this.selectedUserId;      -> here this.selectedUserId is not referring to the component's selectedUserId
+    });
+
+    console.log(user);  //unreachable
+  }
+}
+Output -> TypeError: Cannot read properties of undefined (reading 'selectedUserId')
+Because 'this' here is the regular function's own 'this', which is undefined.
+
+Now consider an arror function inside find():
+export class UserComponent {
+  users = [
+    { id: 1, name: 'Amit' },
+    { id: 2, name: 'Rahul' }
+  ];
+
+  selectedUserId = 2;
+
+  findUser() {
+    const user = this.users.find((user) => {  -> an arrow function
+      return user.id === this.selectedUserId;      -> here this.selectedUserId is referring to the component's selectedUserId
+    });
+
+    console.log(user);  // {id: 2, name: 'Rahul'}
+  }
+}
+Output -> {id: 2, name: 'Rahul'}, because
+The arrow function doesn't create its own 'this'. It takes it from the surrounding lexical scope.
+This is a real use-case advantage of an Arrow function over a Regular function.
+
+'Surrounding Lexical Scope': Keep looking beyond and beyond until the required variable is found, or the topmost parent function is reached.
+
+------------------------------------------------------------------------------------------------
+
+Higher-order functions:
+A higher-order function is a function that:
+takes another function as an argument, or
+returns a function.
+array.map(...), array.filter(...), array.find(...)
+These all take another function as an argument- numbers.map(x => x * 2);
+
+------------------------------------------------------------------------------------------------
+
+Shallow Copy vs Deep Copy vs no copy:
+Shallow copy:
+A shallow copy creates a new outer object for both the variables, but nested objects which are inside are still shared.
+
+const original = {
+  name: "Mahesh",
+  address: {
+    city: "Lucknow"
+  }
+};
+
+const copy = { ...original };    -> Shallow Copy  (Object.assign() also createa a shallow copy)
+
+A shallow copy creates a new outer object for both the variables, means the reference for 'original' and 'copy' are different.
+
+copy.name = "Rahul";  -> doesn't affect original.name, original.name is still 'Mahesh'
+But, copy.address.city = "Delhi"; also affects original.address.city. Now original.address.city will also be 'Delhi',
+because both objects 'original' and 'copy' point to the same nested 'address' object.
+
+But why?
+Because JavaScript objects are reference values.
+In: const copy = { ...original };
+For a primitive (name: "Mahesh"), the value itself is copied.
+For an object (address: { city: "Lucknow" }), the value is a reference to that object. So both point to the same nested object.
+
+Common ways of making shallow copies-
+const copy = { ...original };
+const copy = Object.assign({}, original);
+const copy = [...original];
+const copy = original.slice();
+
+You can remember Shallow Copy as- copy didn't happen too deeply, only primitives got copied while the nested objects are still the same.
+
+Deep Copy:
+A deep copy creates independent copies of the nested objects as well.
+structuredClone() is a modern JavaScript function for Deep Copy.
+const copy = structuredClone(original);
+
+const original = {
+  name: "Mahesh",
+  address: {
+    city: "Lucknow"
+  }
+};
+const copy = structuredClone(original);    -> Deep Copy
+copy.address.city = "Delhi";
+console.log(copy.address.city);     // Delhi
+console.log(original.address.city); // Lucknow (here the original nested object is not affected)
+
+You can remember Deep Copy as- copy happened deeply and completely, everything got their own separate copy.
+
+No copy:
+When both variables 'original' and 'copy' reference the same object.
+const copy = original;  -> here both point to the same reference of the object
+original ──────┐
+               ▼
+             Object
+               ▲
+               │
+copy ──────────┘
+
+So changing even the primitive value of one object will affect the other object.
+copy.name = "Rahul";
+console.log(original.name) -> 'Rahul'
+
+You can remember no copy as- no variable actually got their own copy of anything. 
+
+------------------------------------------------------------------------------------------------
+
+Angular 20/21 new features:
+
+Zoneless Change Detection: Angular can run without zone.js, reducing unnecessary change-detection work and thus faster rendering.
+Signals APIs became stable.
+Signal Forms: Angular 21 introduced the signal-based forms API.
+Incremental Hydration: Improves startup for Server Side Rendered (SSR) applications.
+Angular 20 also contains numerous framework-level performance optimizations.
+
+"Did Angular 20 improve performance compared with Angular 17?"
+-"Yes, Angular 20 has performance improvements, particularly in rendering, change detection, and hydration.
+However, the magnitude of improvement depends on the application,
+and some of the biggest benefits require adopting newer approaches like Signals and zoneless change detection."
+
+------------------------------------------------------------------------------------------------
+
+Dependency Injection (DI):
+A design pattern where a class receives the dependencies it needs from an external source (Angular's injector) instead of creating them itself.
+
+@Injectable({
+  providedIn: 'root'
+})
+export class UserService {}
+
+providedIn: 'root' registers the service with the application's root injector, making it available throughout the application.
+It provides a single shared instance of the service to all the components injecting it.
+
+------------------------------------------------------------------------------------------------
+
+Constructor vs ngOnInit:
+The constructor runs when the component's class instance is created and is primarily used for Dependency Injection.
+ngOnInit() is an Angular lifecycle hook called after Angular initializes the component's input properties (@Input), making it suitable for initialization logic.
+
+------------------------------------------------------------------------------------------------
+
+CSRF: Make the legitimate application (backend) perform an unwanted action using the victim's existing authentication.
+Request-origin protection- "Did this request actually come from my application/user interaction rather than being forged by another site?"
+Attacker can cause a request → but cannot read the legitimate site's CSRF token because of the browser's same-origin policy → therefore cannot forge a valid CSRF-protected request.
+Why would a user visit a malicious site in the first place? He can. What matters is that he visited the malicious site WHILE being logged into the real site.
+
+The browser automatically sends the Authentication cookie. That's what CSRF exploits. The attacker doesn't need to know the actual cookie value.
+
+Double-Submit Cookie:
+The server puts the CSRF token in a cookie, and the legitimate frontend reads that token and submits the same value in a request header.
+The server checks that the cookie value and header value match.
+
+Frontend puts the token into a header by reading it from the cookie:
+POST /api/transfer
+Cookie: sessionId=ABC123
+X-CSRF-Token: X7a92Kp81Z...
+
+So the same CSRF token has now been submitted twice:
+Cookie:
+csrfToken=X7a92Kp81Z...
+Header:
+X-CSRF-Token: X7a92Kp81Z...,
+which the server will check that the cookie value and header value match.
+
+Remember: All this is happening in the user's browser and the user is performing these actions, like visiting the malicious site, clicking something there etc.
+
+------------------------------------------------------------------------------------------------
+
+REST API:
+REST = REpresentational State Transfer
+An API designed according to the principles of REST.
+REST is an architectural style for designing network APIs. It defines principles for how a client and server should communicate over HTTP.
+REST = a set of guidelines for designing APIs that use HTTP resources and standard HTTP methods (GET, POST, PUT, PATCH, DELETE).
+Some principles:
+-URLs should represent nouns, not actions.
+   instead of:
+      POST /createUser
+      GET /getUser
+      POST /deleteUser
+   we generally follow this:
+      POST   /users
+      GET    /users
+      GET    /users/:id
+      PATCH  /users/:id
+      DELETE /users/:id
+-Use HTTP methods correctly (GET, POST, PUT, DELETE, PATCH)
+-Use HTTP status codes meaningfully
+-Keep APIs stateless
+   Each request should contain everything the server needs to process it.
+   The application shouldn't depend on remembering the client's previous request.
+-Design consistent, sensible code while designing API
+   Use consistent JSON structures, query params, error formats, pagination, filtering, etc.
+
+------------------------------------------------------------------------------------------------
+
+Slow query? inspect query plan → understand filtering/sorting/joining → determine whether an appropriate index can help → measure again.
+Table: actual data
+Index: searchable structure pointing toward the data
+Optimizer: decides whether using indexes are worthwhile
+Sometimes a sequential/full table scan can be cheaper. So the optimizer might decide:
+"I'll just scan the table."
+This is why having an index doesn't guarantee index usage.
+The optimizer chooses an execution plan based on estimated cost.
+
+How I did Query Optimization?
+"I inspected the query execution plan to understand how the database was accessing the data. 
+Based on the filtering pattern and the data distribution,
+I identified an appropriate index and then compared the query performance before and after the change."
+
+Inspect its execution plan (using EXPLAIN ANALYZE):
+EXPLAIN ANALYZE
+SELECT * FROM users
+WHERE email = 'abc@example.com';
+
+Possible techniques to optimize a query:
+Examine the execution plan (using EXPLAIN ANALYZE)
+Add an appropriate Index
+Avoid retrieving unnecessary columns/data
+Optimize JOINS
+
+Add an Index syntax:
+CREATE INDEX idx_<tablename_columnname>
+ON <tablename(columnname)>;
+
+CREATE INDEX idx_users_email
+ON users(email);
+
+------------------------------------------------------------------------------------------------
+
+Handling CPU-heavy synchronous/asynchronous tasks through Workflow Engine:
+
+Workflow = the sequence of steps
+Queue = where work waits
+Worker = processes a piece of work by picking it from the queue OR gives it to Workflow Engine for a plugin to process
+Workflow engine = coordinates the overall process
+
+A workflow engine coordinates a multi-step process;
+It knows what steps need to run, in what order, what happens when they succeed or fail, and how the workflow progresses.
+
+
+┌──────────────┐
+│     UI       │
+└──────┬───────┘
+       │
+       │ POST /files/process (a CPU-heavy task)
+       │ 'invoice.pdf'
+       ↓
+┌──────────────┐
+│ Node.js API  │ 
+└──────┬───────┘
+       │
+       ↓
+┌──────────────┐
+│    Queue     │ 
+└──────┬───────┘
+       │
+       ↓
+┌──────────────┐
+│    Worker    │ 
+└──────┬───────┘
+       │
+       │ A Worker picks up the job and processes it, OR gives it to the Workflow Engine (in this flow we are giving it to the Workflow Engine)
+       ↓
+┌──────────────┐
+│   Workflow   │
+│   Engine     │
+└──────┬───────┘
+       │
+       ↓
+┌────────────────────────┐
+│     Plugin System      │
+│                        │
+│ Which plugin handles   │ pdf, image, video, excel, word?
+│ this file type?        │
+└─────┬──────────────────┘
+      │
+      │ .pdf
+      ↓
+┌─────────────┐
+│ PDF Plugin  │
+└─────┬───────┘
+      │
+      │ process('invoice.pdf'), communication done through gRPC 
+      ↓
+┌─────────────┐
+│ C++ Core    │
+│ Engine      │
+└─────┬───────┘
+      │
+      │ processed result
+      ↓
+┌──────────────┐
+│ Workflow     │  (The processed pdf eventually comes to the pipeline, whether a Worker processes it or a plugin)
+│ continues    │
+└─────┬────────┘
+      ↓
+Store result
+      ↓
+Notify user
+
+
+gRPC: gRPC is a framework for communication between services, including services written in different programming languages.
+
+------------------------------------------------------------------------------------------------
+
+How to debug an issue in the database:
+   review the query (SELECT, JOIN, WHERE etc)
+   whether the query is retrieving more data than necessary
+   whether unnecessary filtering or JOINs are happening in the query
+   whether appropriate index is there, or whether indexes are used or not
+   recent code/query changes
+
+ACID properties in database transactions:
+Atomicity   —  A Transaction happens completely or not at all.
+Consistency —  A Transaction keeps the database valid and follows all rules (like email should still be unique, age should still be always > 0 etc).
+Isolation   —  Concurrent Transactions run without interfering with each other.
+Durability  —  Once a Transaction is committed, the changes stay saved even after a crash.
+
+What is a Transaction is databse?
+A transaction is a group of database operations that should be treated as one unit of work.
+A transaction groups database operations into one logical unit so they either succeed together or can be rolled back safely.
+If something goes wrong in any of the operations, the Transaction can be rolled back completely.
+Transfer ₹200:
+   1. Deduct ₹200 from A
+   2. Add ₹200 to B
+What if step 1 succeeds but the application crashes before step 2? You'd end up with money disappearing.
+A Transaction allows these related database operations to be treated as one logical unit.
+
+Database Locking:
+One way databases deal with concurrent access is Locking the relevant data entry inside a table.
+"Our inventory table says there is only 1 item left. Two users click Buy at almost exactly the same time.
+How would you prevent both orders from successfully purchasing that last item?"
+Transaction A -> lock inventory row -> quantity = 1 -> decrease → quantity = 0 -> create order -> COMMIT -> lock released.
+Transaction B -> tries same row -> sees quantity = 0 -> order rejected.
+
+Normalization:
+Normalization organizes related data into separate tables to reduce unnecessary duplication and maintain consistency.
+Have only related data in a table.
+Don't put extra data in a single table. Create a different one based on how the data are related.
+Reduce duplication + maintain consistency.
+
+“I would always fully normalize everything.” -> Wrong 
+“I'd start with a normalized design to maintain consistency,
+then consider deliberate denormalization based on read patterns and performance requirements.” -> Correct
+
+Migration:
+Migration is a controlled change (by version) to the database schema.
+Migrations are version-controlled changes to database schema/data that must be applied safely, especially in production.
+Choose a Migration strategy that minimizes blocking and keeps the Node.js application compatible while the deployment is in progress.
+Before:
+Users
+id | name
+After:
+Users
+id | name | phone
+"Can I safely change the schema without causing unacceptable downtime, locking, or breaking the NOde.js application?"
+
+------------------------------------------------------------------------------------------------
+
+NgRx:
+Component dispatches an Action (says what needs to happen) → Reducer (decides how state changes) → Store (holds the state) → Selector (reads the state)
+And:
+Effect handles side effects such as API calls. 
+In this case, an extra step will be added in the above flow, where the Effect comes inbetween component action and the Reducer.
+
+The components that are interested in the state are using a Selector.
+
+Incase of an API call (which is a side-effect):
+Component
+   ↓ dispatches
+Action
+   ↓
+Effect → calls API
+   ↓ after successful API call
+Success Action
+   ↓
+Reducer
+   ↓ updates the state
+Store.
+   ↓
+Selector
+   ↓ helps read the state
+Component
+
+Effects handle side-effects, and not Reducer, because Reducer is supposed to be pure (same output for the same input)
+Reducer → pure tasks
+Effect  → external/async tasks
+
+------------------------------------------------------------------------------------------------
+
+RxJS operators (modify the value emitted by an Observable):
+debounce(300)
+observable.pipe(operator1, operator2, ...)
+switchMap: Previous subscription is unsubscribed/cancelled if it is still pending when a new value is emitted (disadvantage: the previous subscription might get completed before it is unsubscribed)
+mergeMap: Keep running all the subscriptions, completion order doesn't need to match the input order; All will be executed with no particular order
+concatMap: subscriptions are queued and processed one after another, next one doesn't start until the previous one finishes; All will be executed and in order
+exhaustMap: While the current subscription is running, DISCARD new subscriptions and dont consider them at all till the previous one is running
+tap(): perform a side effect without changing the value (logging, setting loading indicators, debugging)
+map(): transform the values of the observable
+filter(): filter out values from the observable
+distinctUntilChanged(): ignore consecutive duplicates ('cat cat cat car car cat cat cars' will become 'cat car cat cars')
+forkJoin({..., ...}): Run multiple Observables and emit only when all have completed.
+finalize(): run cleanup when the Observable terminates/unsubscribes
+
+An example use of switchMap():
+searchSubject$ = new Subject<string>();
+ngOnInit() {
+   this.searchSubject$.pipe(
+      debounce(300),
+      distinctUntilChanged(),
+      switchMap((searchTerm) =>
+         this.http.get(`/api/users?search=${searchTerm}`)
+      )
+   ).subscribe((users) => {
+      this.users = users;
+   });
+}
+
+onSearchChange(event: Event) { //called on (change)="onSearchChange($event)" from <input>
+  const searchTerm = event.target.value;
+  this.searchSubject$.next(searchTerm);
+}
+
+more about pipe():
+observable.pipe(operator1, operator2,operator3,...):
+Take the Observable → pass its emitted values to operator1 → whatever comes out goes into operator2 → then operator3 → ...
+Operators return Observables, even the last one in the chain, not a normal variable. So in the end, we still need to subscribe the final result.
+An operator can change the data type of the observable. For example-
+const result$ = users$.pipe(map(users => users.length)) -> users$ is of Observable<User[]>, result$ is of Observable<number>
+search$.pipe(switchMap(query => this.http.get(`/api/search?q=${query}`))) -> here, 'query' argument is the value emitted by search$
+Thus, any argument inside an operator is the value emitted by the observable for which these operators are being used.
+
+------------------------------------------------------------------------------------------------
+
+Idempotency: Performing the same operation multiple times produce the same output everytime, as it would have if the operation was performed the first time.
+Sometimes, some operations are idempotent by their nature (own their own), like PUT calls, DELETE calls.
+But sometimes, we WANT some operations to be idempotent if they are not, so we make some changes to make it idempotent.
+For example, a POST call is not idempotent, but we might need to make it so that the same operation is not happening twice and producing different results, because they will.
+The same operation can be attempted multiple times, but its intended effect should happen only once.
+Usually during retries, when during the current attempt the operation was actually completed but the system crashed when the time to notify came.
+So the retry mechanism will try again thinking the operation is not performed (because it doesn't know).
+But if the operation is idempotent, the retry attempt won't perform the operation again, even if the attempt is being made.
+The initiated retry attempt will check for idempotency key, persistent state etc (no need to remember these terms) to verify if the operation is already completed, and act accordingly.
+
+------------------------------------------------------------------------------------------------
+
+Production system mental model:
+
+Requirements
+   ↓
+
+API
+→ accepts requests
+
+Load balancer (traffic officer)
+→ on its own handles & distributes traffic to multiple instances of the same API running on multiple servers (usually n servers will have n instances of one API)
+
+Queue
+→ decouples work from the main flow
+
+Worker(s)
+→ process jobs from the queue
+
+Database
+→ persistent metadata/state (table structure and all) to retrieve info of a work/file faster
+
+Object storage (S3 Bucket)
+→ actual files (blob), could be images, videos, pdfs, anything large
+
+Cache
+→ optional performance layer (could also be used for storing things like idempotency keys or anything shared if a load balancer is used)
+
+Logs + metrics + traces
+→ tell us what's happening (any issue/bottleneck, status of a work)
+
+Health checks (done by the Load Balancer for each server internally every few seconds)
+→ tell whether an instance of the API in a server is usable (are currently live/dead, are ready to take requests/overloaded etc)
+
+Graceful shutdown (on receiving SIGTERM)
+→ lets the API instances stop safely (no more new requests, finish existing requests, close db, close cache system like Redis)
+
+That's the core of production-oriented system design.
+
+"How would you make your file-processing system reliable and scalable?"
+"I'd decouple long-running processing using a queue and workers. (put the heavy work in a queue so that a worker could pick it up and process it)
+I'd scale API instances horizontally behind a load balancer and scale workers (if required) based on workload. (load balancer will help other instances of an API to participate handling the request instead of just one) 
+I'd keep file blobs in object storage and metadata/status in a database. (if the status of a file needs to be checked, we can query the db instead of searching for it in the object storage)
+I'd add retries and idempotency for failure handling;
+and use structured logging, metrics, tracing, health checks, and graceful shutdown for production reliability."
+
+------------------------------------------------------------------------------------------------
+
+Caching:
+When to use Caching?
+If the data is:
+   frequently requested (same data requested a lot)
+   relatively expensive to retrieve (retrieving large data)
+   relatively stable (data doesn't change frequently)
+
+A cache db usually sits infront of the database to first check if the data already exists in the cache.
+
+   Request
+      ↓
+   Cache
+   /     \
+HIT?      MISS?
+ ↓          ↓
+Return   Database
+            ↓
+         Store in cache
+            ↓
+         Return
+
+Cache disadvantage:
+Stale data: The data stored in cache should be in sync with the database. (if a data is deleted/updated from the database but still present/older copy in cache, it will create inconsistency)
+How to tackle it: 
+1. Time to Live (TTL): Delete the copy of data from the cache after certain time (in seconds or minutes). Have random TTLs to different different data.
+2. Active Invalidation: Delete the old copy of data the moment it changes (while updating the data in database, update it in the cache as well) 
+
+Cache Stampede: When a cache data expires, and thousands of requests miss the cache, it will cause Cache Stampede to the database, where thousands of requests hit the database at once.
+
+------------------------------------------------------------------------------------------------
+
+Keep your servers Stateless.
+Don't remember anything from a previous request, don't store anything in the memory of a server.
+For storing something, use a Shared Store (usually a cache). This way all the servers can access that stored data from the Shared Store, 
+eliminating the issue where one server doesn't know anything about an information which is stored only in another server.
+For example: login session tokens, rate-limiter count etc.
+
+Any server that sits infront of the API requests made by the user has a general name, called Reverse Proxy.
+A Load Balancer is the most common type of Reverse Proxy, so common that these terms are used interchangeably.
+Usually, the IP Address found from the DNS lookup is of a Reverse Proxy (or from now on we say Load Balancer), and not of any server that are managed by the Load Balancer.
+
+How entering a URL opens a webpage:
+user enters a URL ->
+DNS lookup to get the IP address of the load balancer ->
+load balancer picks a healthy server ->
+the server does the operation as per the code, reads/fetches the data from the db ->
+the response travels back the same path.
+
+------------------------------------------------------------------------------------------------
+
+What to ask and what not to ask initially during the start of System Design interview:
+
+-Firstly, rule of thumb- Never ask about which technology, language, architecture to use, and which components to use.
+-Ask yourself: "Will the answer to my question change the design?"
+-Some good questions to ask:
+   1. What is this system supposed to do? This is a functional requirement question.
+   2. How many active users are there at one point of time and how fast they are growing?
+         < 10k	                     1 server + 1 DB can work
+         10K-100K                	Still potentially simple, maybe add 1 load balancer & a cache depending on traffic
+         100K-1M	                  Start thinking distributed — multiple servers, a load balancer, cache, DB scaling (1 primary + around 2-3 secondary) 
+         1M-10M	                  Definitely design for horizontal scaling
+         10M+	                     Distributed architecture is very likely; consider sharding, queues & workers, replicas, etc.
+      If asked to choose myself, say ~10M so that you can demonstrate your wide knowledge of scaling, caching etc.
+      But remember, this is for one point of time. If it says in a day, then 1M is actually a low number of users.
+      And if it says for a year, then it is too huge a number, in billions.
+   3. Do users read more, or write more? Cache + DB scaling (1 primary + around 2-3 secondary)  will be introduced if read more.
+         If asked to choose, say read more.
+   4. What should be the latency of important actions? 
+   5. What data can we never afford to lose?
+ 
+
+
+-------------------------------------------------------------------------------------------------
+
+Docker:
+Docker is a technology/tool/software used to build, run and manage Containers.
+It addresses the environment inconsistency problem.
+
+Docker Image:
+You package your application together with the environment (packages, dependencies, configs etc) it needs, into a Docker Image.
+Docker Image = Application codebase + Node runtime environment/version + dependencies + configuration
+Another way of looking at Docker Image: If Docker is part of the pipeline, then the Build Artifact generated after the build succeeds is actually the Docker Image itself.
+This Image can then run as a Container on another machine.
+Think of an Image as a package.
+
+Container:
+A container is a running instance of a Docker Image.
+A Docker Container packages the application with its environment into a consistent, isolated runtime environment,
+reducing differences between dev, sqa & prod environments.
+Tip: Whenever you say an 'application' running on a server, you can usually interchangeably also say an 'application container' running on a server,
+because an application will not run without its proper node runtime environment, dependencies, packages etc on a server.
+   Though an 'application' can run directly as well on a server without container being involved.
+   But just to have Containers in your vocabulary, you can say the above for now.
+
+A common infrastrucure:
+
+                         Load Balancer
+                              |
+              ┌───────────────┼───────────────┐
+              ↓               ↓               ↓
+           Server 1 (EC2)  Server 2 (EC2) Server 3 (EC2)
+              |               |               |
+         ┌────┼────┐     ┌────┼────┐     ┌────┼────┐
+         ↓    ↓    ↓     ↓    ↓    ↓     ↓    ↓    ↓
+       Node  Node Node  Node Node Node  Node Node Node
+       App   App  App   App  App  App   App  App  App
+       C1    C2   C3    C1   C2   C3    C1   C2   C3              (C1, C2, C3 are Container 1, Container 2, Container 3)
+
+A Load Balancer could be behind one or more servers.
+A server could be behind one or more containers running the Node.js application.
+1. Load balancer → Server
+   The load balancer can distribute incoming traffic among servers.
+2. Server → container
+   Once a request reaches a server, something on that server/container-platform can determine which container handles it.
+However, the load balancer doesn't necessarily have to first choose a server and then have the server choose a container.
+It can directly know about the container where the request has to be redirected.
+
+Container Registry:
+A container registry is a place where Docker images are stored,
+so that machines/environments can download them and create Containers from them.
+AWS has a service for this called Elastic Container Registry (AWS ECR).
+
+Dockerfile:
+A Dockerfile is basically a file containing the instructions for creating the Docker Image.
+Example:
+Start with Node
+       ↓
+Copy package files
+       ↓
+Install dependencies
+       ↓
+Copy application
+       ↓
+Build application
+       ↓
+Start application
+
+------------------------------------------------------------------------------------------------
+
+CI/CD (Continuous Integration/Continuous Delivery or Deployment):
+Firstly, your own experience in CI/CD. What you have been doing:
+
+Developer code
+      ↓
+     PR
+      ↓
+Merge into main
+      ↓
+┌──────────────────────┐
+│         CI           │
+│                      │
+│ Run pipeline         │
+│ Build                │
+│ Test                 │
+│ Necessary checks     │
+│ (jest, snyk, sonar..)│
+│ Generate artifact    │
+│ (Build #1234)      │
+└──────────┬───────────┘
+           ↓
+┌──────────────────────┐
+│        CD            │
+│                      │
+│ Create Release       │
+│        ↓             │
+│ Deploy to DEV        │
+│        ↓             │
+│ Manual approval      │
+│        ↓             │
+│ Deploy to SQA        │
+└──────────────────────┘
+
+You can think of CI/CD as the bridge between your source code and your running application infrastructure.
+
+"Have you worked with CI/CD?"
+"Yes. In Azure DevOps, after merging a PR into the main branch, I trigger the application's build pipeline from the main branch. 
+The pipeline builds and generates a build artifact with a build id.
+I then create a Release using that specific build, which also deploys it to the Dev environment automatically.
+Deployment to SQA requires a manual deployment/approval step."
+
+Depending on the organization's setup, CD may mean:
+Automatically making a release ready for deployment (Continuous Delivery), or
+Automatically deploying it as well to production (Continuous Deployment).
+In your case, CD still means Continuous Delivery, because only the Dev environment deployment is automated. You still need manual approval for deploying in SQA, PCG & Prod.
+
+Jenkins:
+Jenkins is a software that automates tasks in the software delivery process (in CI/CD).
+Just merge the PR to the main branch. Rest all Jenkins can handle from here, till production deployment.
+Let's say you push code in main branch by merging the PR. Jenkins notices the change, and starts its job as a workflow:
+
+Jenkins
+   |
+   ├── 1. Checkout code to main branch
+   |
+   ├── 2. npm install
+   |
+   ├── 3. Run jest tests, snyk, sonar etc
+   |
+   ├── 4. Build the application to generate a Docker Image
+   |
+   ├── 5. Push the Image to Container Registry (AWS ECR etc)
+   |
+   └── 6. Deploy (target environment) (handled by a deployment platform, like Kubernetes, AWS ECS etc)
+           ↓
+         Server
+           ↓
+        Container
+      (Latest Node.js Application with the code changes)
+
+Jenkins is basically orchestrating the steps.
+
+AWS ECS -> Elastic Container Service, AWS service for running and managing Docker Containers.
+
+"How would you containerize a Node.js application?"
+"I would containerize the Node.js application by creating a Dockerfile that defines the environment required to run the application.
+To define the environment, I would choose an appropriate Node.js runtime/version, copy the application's package files (package, package-lock) and install the dependencies, 
+copy the application source codebase, tell it the port the application listens on, and the command to start the application.
+Then I would use that Dockerfile to build a Docker Image.
+That Image can be pushed to a Container Registry, and a Container can be created from that image and deployed to the target environment."
+
+------------------------------------------------------------------------------------------------
+
+AWS
+
+| AWS service       | Simple meaning                     | Think of it as                           | Popular alternatives                                                         |
+| ----------------- | ---------------------------------- | ---------------------------------------- | ---------------------------------------------------------------------------- |
+|     EC2           | Virtual server                     | A computer in the cloud                  | Azure Virtual Machines**, Google Compute Engine* DigitalOcean Droplets       |
+|     S3            | Object/file storage                | A huge file bucket                       | Azure Blob Storage**, Google Cloud Storage, Cloudflare R2                    |
+|     RDS           | Managed relational database        | Managed PostgreSQL/MySQL/SQL Server etc. | Azure SQL Database**, Google Cloud SQL, Oracle Cloud databases               |
+|     IAM           | Identity & access control          | Who can do what                          | Microsoft Entra ID (Azure AD), Google Cloud IAM, Okta                        |
+|     Lambda        | Run code without managing servers  | Function-as-a-Service                    | Azure Functions**, Google Cloud Functions, Cloudflare Workers                |
+|     CloudWatch    | Monitoring, logs, metrics, alarms  | Production monitoring                    | Azure Monitor**, Google Cloud Monitoring, Datadog, New Relic                 |
+|     Load Balancer | Distributes traffic across servers | Traffic cop                              | Azure Load Balancer, Google Cloud Load Balancing, NGINX, HAProxy             |
+|     VPC           | Isolated/private cloud network     | Your application's network               | Azure Virtual Network (VNet), Google Cloud VPC                               |
+|     ECR           | Container Registry                 | Where Images (build artifacts) are stored| Azure Container Registry, Docker Hub, Google Artifact Registry
+|     ECS           | Container Service                  | Managing/deploying registries            | Kubernetes, Azure Container Apps, Google Cloud Run
+
+EC2:
+Elastic Compute Cloud
+AWS gives you a 'virtual server', and you run your application on it through EC2.
+You can run multiple EC2 instances to distribute traffic:
+             Load Balancer
+              /    |    \
+             /     |     \
+          EC2     EC2     EC2
+           |       |       |
+        Node.js Node.js Node.js
+
+You still have to manage the virtual server -> Choose the server size, Keep the server running, Deploy your Node.js application, Handle scaling etc.
+
+S3:
+Object/file storage system for raw & huge data.
+AWS's object storage service, designed for storing things like:
+PDFs, Images, Videos, Documents, Backups, miscellaneous Large files
+A highly scalable place to store files/blobs, and not in your application server or database.
+
+It also helps in co-ordinating a Distributed System:
+If a user uploads 'document.pdf' to EC2 #1, that file is sitting on that particular server.
+Later, another request goes to EC2 #2: The file isn't necessarily there.
+And if EC2 #1 is terminated, that local file could disappear.
+So a better approach:
+             Load Balancer
+             /          \
+          EC2 #1       EC2 #2
+             \          /
+              \        /
+                  S3
+                  |
+            'document.pdf'
+
+A common architecture:
+User
+ ↓ API request
+Load Balancer
+ ↓
+EC2 #n
+ ↓
+Node.js API
+ ↓
+Create processing job
+ ↓
+Queue
+ ↓
+Worker
+ ↓ (accesses files from S3)
+S3 ←──── files
+ ↓ (after processing the file)
+Database ← metadata/status
+
+You generally wouldn't put a 500 MB video directly into a normal relational database just because you can.
+Instead:
+S3 → actual file/blob
+Database → metadata about the file, its status
+
+So the database might contain:
+   id: 123
+   file_name: 'report.pdf'
+   s3_key: "uploads/2026/09/report.pdf"
+   status: "PROCESSING".
+While S3 contains the actual 'report.pdf'.
+
+
+RDS:
+RDS = Relational Database Service
+It's AWS's managed service for relational databases.
+You can run:
+PostgreSQL, MySQL, MariaDB, Microsoft SQL Server, Oracle in it,
+instead of manually managing a database server yourself.
+
+RDS can handle things like infrastructure, backups, patching, monitoring, and high-availability options of the database, depending on the configuration.
+
+Without a managed service:
+EC2 (virtual server)
+ ↓
+Install PostgreSQL in EC2
+ ↓
+Configure it
+ ↓
+Maintain it
+ ↓
+Backups
+ ↓
+Patching
+ ↓
+Monitoring
+
+With RDS:
+Your application
+      ↓
+     RDS (RDS will do all the above steps, you just have to use PostgreSQL without worrying about managing it)
+      ↓
+  PostgreSQL
+
+You still need to implement your schema, indexes, queries, transactions, migrations, connection pooling, etc.
+RDS is managing the underlying database infrastructure; it isn't managing your application's database design/query for you.
+
+The distinction is:
+Self-managed Database: Putting PostgreSQL directly on EC2 yourself (you can, because you just have to put it on a virtual server ie EC2)
+vs
+Managed Database Service: Utilizing AWS's RDS service and using PostgreSQL behind it.
+
+
+IAM:
+Identity and Access Management
+IAM controls who or what is allowed to access AWS resources (like entire S3, a file in S3 etc) and what actions they can perform.
+It performs both Authentication and Authorization of an EC2 instance, Node.js application, user (AWS user, not the app's end-user) etc.
+
+IAM User: An IAM User represents a user or an application needing long-term AWS credentials.
+It is now avoided to provide long-term AWS credentials to applications/users when you can use an IAM Role instead, because:
+   Long-lived credentials (access keys can remain valid for a long time)
+   Higher security risk (if credentials leak, they can be misused)
+   Harder credential management (rotation, storage, and revocation become your responsibility)
+
+IAM Group: A group is simply a collection of IAM Users.
+For example,
+Developers -> Mahesh, Rahul, Amit 
+You can attach a policy to the group 'Developers':
+Developers -> S3 read access
+Every user in that group gets those permissions. This avoids having to attach the same permissions individually to every user.
+Note: A group contains IAM Users, not IAM Roles.
+
+IAM Role: A role is an identity that can be temporarily taken by a trusted entity (EC2 instance/Node.js application/user).
+Consider it as a temporary role provided to an entity for accessing or doing something for a while based on IAM Policies.
+Suppose your Node.js application is running on EC2 and needs to read PDFs from S3. You do:
+EC2 -> IAM Role -> temporary credentials -> S3
+
+| IAM User (avoided)                         | IAM Role (preferred)                    |
+| -------------------------------------------| --------------------------------------- |
+| Represents a long-term identity            | Represents a temporary identity         |
+| Often associated with a user               | Often used by AWS services/applications |
+| Can have long-term credentials             | Uses temporary credentials              |
+| Example: developer, team lead              | Example: EC2 application                |
+| Credentials can be persistent              | Credentials are temporary               |
+
+IAM Policies: Policies define what actions are allowed or denied.
+Identity-based policy: Attach the policy to a User, Group or a Role
+Resource-based policy: Attach the policy directly to the resource
+
+Least Privilege: A fundamental IAM principle.
+Give an identity only the permissions it actually needs.
+
+"Your Node.js application is running on EC2 and needs to upload files to S3. How would you authenticate it?"
+"I would create an IAM Role for the EC2 instance and attach a least-privilege policy allowing only the required S3 operations on the bucket. 
+ I would then associate this role with the EC2 instance."
+
+Note:
+JWT- application-level authentication/authorization of an end-user (client)
+IAM- AWS-level authentication/authorization of a user from the team (developer, tester, product owner etc), or an entity
+
+IAM
+│
+├── User             → long-term identity
+├── Group            → collection of Users
+├── Role             → temporary identity
+├── Policy           → permissions
+└── Least Privilege  → only necessary permissions
+
+
+Lambda:
+Lambda lets you run backend code without managing the server yourself (in EC2, you still have to manage the server).
+You give AWS a function/code, and AWS takes care of starting the compute, running it, scaling it, and shutting it down when it's no longer needed.
+
+You mainly provide the function:
+export const handler = async (event) => {
+    return {
+        statusCode: 200,
+        body: JSON.stringify({ message: "Hello" })
+    };
+};
+AWS Lambda handles the underlying server(s).
+
+Lambda is a piece of code that AWS runs when something triggers it.
+Some triggers:
+HTTP request: HTTP request -> API Gateway -> Lambda -> Your code executes -> Response
+In certain AWS entity operation: S3 file uploaded -> Lambda -> Process the file
+Many more..
+
+Lambda is called "Serverless":
+Serverless does NOT mean there are no servers. There obviously are servers somewhere.
+It means you don't have to manage those servers yourself.
+
+Lambda automatically scales:
+Imagine your Lambda normally receives- 10 requests/second
+AWS can run Lambda executions as needed.
+If traffic suddenly becomes- 10,000 requests/second,
+AWS can create many concurrent Lambda executions.
+
+You pay based on usage:
+With an EC2 instance, instance running → you're paying for it even if it is sitting idle.
+With Lambda, pricing is primarily based on things such as: number of invocations, execution duration, allocated memory
+
+                    | EC2                       | Lambda                             |
+| ----------------- | ------------------------- | ---------------------------------- |
+| Server management | You manage it             | AWS manages it                     |
+| Scaling           | You configure/manage it   | AWS handles scaling                |
+| Execution         | Long-running server       | Function invocations               |
+| Billing           | Instance usage            | Invocations + execution resources  |
+| State             | Can keep local state      | Should be treated as stateless     |
+| Startup           | Server already running    | Can have cold starts               |
+| Best suited for   | Long-running applications | Event-driven/short-lived workloads |
+
+
+CloudWatch:
+AWS monitoring and observability service
+"What's happening with my application and AWS resources in production?"
+
+It can collect and show things like:
+Metrics — CPU utilization, request counts, latency, etc.
+Logs — application/system logs
+Alarms — notify or trigger action when a threshold is crossed
+Dashboards — visualize important metrics
+
+Winston/Morgan: Generate/manage logs inside your Node.js application. So it is application level.
+CloudWatch: AWS-side monitoring/observability service where you can collect and monitor logs and metrics from your AWS environment. So it is AWS level.
+
+
+AWS Load Balancer:
+The AWS Load Balancer receives incoming requests and distributes them among server/EC2 instances.
+It can also perform health checks.
+"Why put a load balancer in front of multiple EC2 instances?"
+Traffic distribution → Health checks → Availability → Scaling
+
+An example of complete architecture: 
+
+                         Internet
+                            ↓ API request
+                      Load Balancer
+                            ↓
+                    EC2 / Node.js API --------> in case of light/moderate task ---
+                       /          \ heavy task                                   |
+                      ↓            ↓                                             |
+                     S3          Queue                                           |
+                (actual PDF)       ↓                                             |
+                              Worker or Lambda                                   |
+                                   ↓                                             |
+                                  RDS   <----------------------------------------|
+                           (metadata + status)
+
+Add retries, idempotency, use CloudWatch (or manually add health checks, logging, metrics, and monitoring) for production reliability.
+
+
+VPC:
+Virtual Private Cloud = Your own private network inside AWS
+It's a network/environment in which your AWS resources live and communicate privately.
+
+ECR:
+Elastic Container Registry = AWS service for storing Docker Images
+
+ECS:
+Elastic Container Service = AWS service for deploying, running and managing Docker Images
+
+
+Note: You can still use AWS services without involving Docker and get the same outcome.
+      Docker is just a tool for packaging your application with its environment, creating a Docker Image, so that
+      the deployment is properly done on a server and failures are minimized.
+      You can still use AWS services and directly deploy your application on a server, but chances of deployment failures are increased. 
+
+------------------------------------------------------------------------------------------------
+
+Authentication problem: 401 Unauthorized
+Authorization problem: 403 Forbidden
+
+------------------------------------------------------------------------------------------------
+
+WebSocket:
+A WebSocket is a communication channel that lets the client and server keep a connection open and send messages to each other at any time.
+HTTP: Client asks → Server responds → connection is essentially done
+WebSocket: Client and server establish a connection → both can send data whenever needed
+Example, for a chat application:
+You send a message to a friend → server immediately sends it to him
+You don't need to keep asking the server, "Any new messages?"
+Common uses:
+💬 Chat applications
+🎮 Multiplayer games
+🔔 Notification system
+
+------------------------------------------------------------------------------------------------
+
+Input Validation:
+Validating the payload body during the initial steps before it could cause obvious issues further. (eliminate silly/tiny mistakes)
+Reject bad input as early as possible, before expensive business logic or database work.
+Don't rely only on frontend validation entirely. UI validations can be bypassed by numerous tricks (like in CSRF).
+Client-side validation improves UX. Server-side validation provides security/integrity.
+
+Request -> Validation in Route pipeline -> Controller -> Service -> Database
+
+Validation might check:
+Required fields
+Data types
+String length
+Unique value
+Format
+Allowed values
+Numeric ranges
+Request body structure
+
+If using Express, putting the validation middleware in the route pipeline is usually cleaner:
+router.post(
+  "/users",
+  validateCreateUser, <-
+  userController.createUser
+);
+
+------------------------------------------------------------------------------------------------
+
+Connection Pooling:
+Request 1 → create DB connection → query → close
+Request 2 → create DB connection → query → close
+Request 3 → create DB connection → query → close
+...
+Creating database connections repeatedly is expensive.
+Instead, a Connection Pool maintains a collection of reusable connections:
+
+             Connection Pool
+          ┌────┬────┬────┬────┐
+          │ C1 │ C2 │ C3 │ C4 │
+          └────┴────┴────┴────┘
+             ↑    ↑
+           Req1  Req2
+
+When a request needs a connection:
+Request
+   ↓
+Get available connection
+   ↓
+Execute query
+   ↓
+Release connection
+   ↓
+Connection returns to pool
+
+But, More connections ≠ automatically better performance
+Creating a connection is costly, and it would be unnecessary if some are always idle.
+
+Ways to create a Connection Pool:
+1. Eager: Connections created when the application starts
+Give minimum connections & maximum connections at the beginning of the application.
+min connections = 5
+max connections = 20
+5 connections will be created when the application starts.
+They can be increased as well as per the demand, upto the configured maximum connections (here 20).
+
+2. Lazy: Connections created on demand
+Give at the start of the application:
+min connections = 0
+max connections = 20
+No connection will be created when the application starts.
+When the first request comes in: Request 1 → Pool → create Connection 1
+Second request: Request 2 → Pool → create Connection 2
+Eventually:
+Pool
+├── Connection 1
+├── Connection 2
+├── Connection 3
+└── ...
+until it reaches the configured maximum connections (here 20).
+
+------------------------------------------------------------------------------------------------
+
+Debugging failures/issues at every step of the request-response flow:
+
+For a typical web application, the flow:
+
+User
+  ↓
+Browser / React / Angular
+  ↓ API request
+DNS
+  ↓
+Network / TLS
+  ↓
+Load Balancer / Reverse Proxy
+  ↓
+Server / EC2 / Node.js
+  ↓
+Middleware
+  ↓
+Controller
+  ↓
+Service / Business Logic
+  ↓
+Cache
+  ↓
+Database / External API / Plugins
+  ↓
+Response processing & construction
+  ↓
+Node.js response
+  ↓
+Load Balancer / Network
+  ↓ API response
+Browser
+  ↓
+UI rendering
+  ↓
+User
+
+1. User → Browser
+   Incorrect or huge request payload formed
+   Expensive client-side computation before request
+   Too many requests triggered by one action
+   (Check the browser Network tab or console)
+
+2. Network / TLS (Browser -> Load Balancer / Reverse Proxy)
+   Slow Network from user's side
+   Connection timeout
+   Firewall/Proxy
+   Server unreachable
+
+3. Load Balancer / Reverse Proxy -> Server / EC2 / Node.js application
+   Proxy/load-balancer delay or any issue
+   Load balancer overloaded
+   Health checks incorrectly configured -> request hitting unavailable server
+   Uneven traffic distribution -> request hitting already overloaded server 
+   All server instances overloaded -> too many requests for the current distributed system
+
+4. In Express Middleware
+   A slow middleware
+   A middleware doesn't call next()
+   Connection closed because of Rate Limiter (not an issue though)
+   Unnecessary middlewares in the pipeline
+   Incorrect Input Validation
+
+5. In Service / Business Logic
+   Inefficient algorithms
+   Heavy synchronous processing (large loops, readFileSync etc)   
+   Repeated calculations
+   N+1 calls
+   Unnecessary external API calls
+   Excessive/incorrect retries
+   (N+1 problem:
+      Get 100 users
+            ↓
+      for each user:
+         call another API (like their orders)
+   That's potentially: 1 + 100 calls) -> use Batching to tackle it
+
+6. Service / Business Logic -> Cache
+   Expired/stale data
+   Cache unavailable/crashed
+
+7. Cache -> Database
+   All connections busy in Connection Pool
+   Connection Pool too small -> requests wait; Connection Pool too large -> DB overloaded
+   Index issue -> Missing index, Wrong index, too many indexes
+   Fetching unnecessary data
+   Unnecessary JOINs/Filtering/Sorting
+   N+1 queries
+   Poor query execution plan/query design
+
+8. In External API / Service / Plugin
+   Third-party service slow/crashed
+   Excessive retries
+
+9. While Response Processing & Construction
+   Huge response body
+   Unnecessary fields
+   Heavy synchronous processing
+   Large/inefficient object transformation
+
+10. Node.js -> Network -> Browser
+   Large response payload
+   Slow user network
+   Proxy/load-balancer delay or any issue
+
+
+
+| Stage                     | Ask yourself                                             |  Typical solutions  
+| ------------------------- | -------------------------------------------------------- |  -------------------------------------------------------------------------------------------------------------------------------------------
+| Browser                   |   Did the request actually start?                        |  Check DevTools Console/Network; validate payload
+| Network                   |   Did it reach the server quickly?                       |  Fix network/proxy/firewall configuration; reduce payload size; user should have a good network bandwidth
+| Load balancer             |   Did it reach a healthy instance?                       |  Configure proper health checks; tune LB configuration; scale instances horizontally; investigate uneven distribution
+| Node.js                   |   Is CPU/memory/event-loop healthy?                      |  CPU profiling; offload CPU work to workers; check memory leaks; scale instances horizontally 
+| Middleware                |   Is something blocking/hanging here?                    |  Ensure `next()`/response; keep middlewares lightweight;
+| Service                   |   Are we doing unnecessary work?                         |  Optimize algorithms; eliminate duplicate work; use retries properly; use queue + workers for heavy processing
+| Cache                     |   Hit or miss? Is cache helping or causing a stampede?   |  Tune TTL; invalidate appropriately
+| Connection pool           |   Is the request waiting for a DB connection?            |  Release connections correctly; tune pool size based on DB capacity; monitor pool utilization; don't blindly increase pool
+| Database                  |   Is the query/plan/data/lock the bottleneck?            |  Check execution plan; add/adjust indexes; optimize query/JOINs/filters/sort; don't fetch all columns using *, only necessary; paginate
+| External API              |   Is a dependency slow/failing?                          |  Cache where appropriate; Set time outs; use retries properly
+| Response Construction     |   Are we doing expensive serialization/transformation?   |  Return only required data; paginate; reduce payload size
+| Network                   |   Is the response large/slow to transfer?                |  Reduce payload size; Check LB; stream large responses; user should have a good network bandwidth
+| Browser                   |   Is rendering/client-side processing slow?              |  Memoization; pagination; optimize rendering
+
+
+
+Reproduce (which action causing the issue, what inputs, everytime/intermediate)
+   ↓
+Measure the extent of the problem (how big is the issue & what else if affected)
+   ↓
+Trace where the failure occurs (logs, network tab error messages, correlation ID, add breakpoints)
+   ↓
+Narrow down and isolate the problematic component
+   ↓
+Find the actual cause in the isolated component (as per the above table wrt to the problematic component found above)
+   ↓
+Test and verify the cause (if it is really the cause)
+   ↓
+Fix with smallest appropriate change
+   ↓
+Test & measure again to verify if the issue is really fixed
+   ↓
+Add test/monitoring to prevent recurrence
+
+------------------------------------------------------------------------------------------------
+
+DATABASE SCHEMA DESIGN
+
+Primary Key:
+A unique identifier of a record in a table.
+Helps fast data retrieval and data integrity.
+Should not change over time.
+Should normally not be null.
+
+Surrogate Key:
+Generated by the system, they do not change, maintaining integrity.
+Usually integers, makes indexing and joining tables faster.
+Uniques across the table; do not reveal any info about the entity, maintaining security.
+We can also create it from our side if the system doesn't provide it.
+Make Surrogate Key a Primary Key.
+
+Foreign Key:
+Forms a relationship between entities by putting a Primary Key of one entity in another.
+Ensures relations between entities remain consistent.
+Foreign Keys should be indexed to improve the performance of JOIN operations.
+
+Composite Index:
+A composite index is an index on multiple columns.
+Used when a data is fetched frequently, ALONGWITH another operation (like sorting).
+Syntax:
+   CREATE INDEX <index_name> ON <entity>(<FK>, <attribute>);
+   CREATE INDEX idx_orders_customer_id ON orders(customer_id, created_at);
+The above index is created because the below query was run frequently:
+   SELECT *
+   FROM orders
+   WHERE customer_id = 101    -> the WHERE command can give you the idea on which attribute the index needs to be created first
+   ORDER BY created_at ASC;  -> extra operation, can be added in the composite index as second attribute
+The order of attributes matter in the entity:
+CREATE INDEX idx_orders_customer_id ON orders(customer_id, created_at DESC); -> FIRST filter by customer_id, THEN sort created_at by desc order.
+
+Leftmost-prefix Principle:
+Suppose CREATE INDEX idx_orders_customer_status
+         ON orders(customer_id, order_status);
+SELECT *
+FROM orders
+WHERE customer_id = 101;            -> Index will be used efficiently
+SELECT *
+FROM orders
+WHERE customer_id = 101
+ORDER BY order_status ASC;          -> Index will be used efficiently here also
+SELECT *
+FROM orders
+WHERE order_status = 'SHIPPED';     -> But here the index will not be used efficiently (it will still be somewhat used though)
+Why? Because customer_id is the 'leading attribute'.
+This is called the Leftmost-prefix Principle.
+How to actually decide the attribute order? Look at the query pattern -> look at the attributes which are used for filtering/sorting/etc in sequence.
+SELECT *
+FROM orders
+WHERE customer_id = ?         -> 1st, filter on customer_id
+AND order_status = ?          -> 2nd, filter on order_status
+ORDER BY created_at DESC;     -> 3rd, sort on created_at
+-> CREATE INDEX idx_orders_customer_status_created
+ON orders(customer_id, order_status, created_at DESC);
+Then verify it with the execution plan if the index is properly working.
+
+EXPLAIN:
+The database has choices on how to execute the query. EXPLAIN lets you see the execution plan the database intends to use.
+EXPLAIN
+SELECT *
+FROM orders
+WHERE customer_id = 123;
+-> will give info like: db is using sequential scan, db is using an index or not, query cost etc.
+Note: Adding an index doesn't guarantee that the db will use it. It depends on the db Optimizer to choose using the index or do a sequential scan.
+
+EXPLAIN ANALYZE:
+EXPLAIN ANALYZE will actually execute the query while getting runtime information.
+With EXPLAIN ANALYZE, you can get actual execution information like execution time (actual time=0.05..1.20).
+EXPLAIN ANALYZE
+SELECT *
+FROM orders
+WHERE customer_id = 123;
+
+------------------------------------------------------------------------------------------------
+
+Some general ideas:
+
+Identify nouns to create potential entities (tables).
+   "Does this noun have a lot of attributes/information and need to exist independently?"
+   Yes? Create a table for it.
+
+Never make a business requirement a Primary Key, because the business requirement can change in future. (Example: username, it is unique but a business requirement)
+Choose a Surrogate Key for it.
+
+For the start, add an 'id' to each table and make it Primary Key.
+
+Have Users table as the first table.
+
+In a table, store the business requirement which you need as attributes (columns). (Users->id, username, name, bio, email; Tweets->id, content, tweeted_by, created_at)
+
+Try to always have 'created_at' attribute for each table. You dont know when you might need it.
+
+In a 1-many relationship, the Foreign Key normally goes on the 'many' side.
+
+Normalisation: Suppose in an entity (table), you end up with lot of attributes that do not belong to that entity.
+   This is a sign that you need a separate entity to store those attributes, and instead of having all those attributes in the 1st entity,
+   just have a Foreign Key in it referencing the new entity you just created.
+
+While creating relations, always start with Users table.
+
+Pick one table, and try to complete its relations with other tables (1-1, 1-many, many-many), and then only pick another table and do the same.
+   You will notice that in this way, you won't be confused creating many-1 relationship from here itself.
+
+You might feel few attributes (especially FK) missing from a table while creating its relation with other tables. This is okay. Add them then.
+
+A Foreign Key from the 2nd table referencing an attribute in the 1st table means- 
+   1st table can have 1-1 OR 1-many relation with the 2nd table. So it covers both 1-1 and 1-many relationship, but not many-many at this point.
+
+Wordings in forming relations:
+   1-1: 1 <1st-entity> can have/belong to 1 <2nd-entity>
+   1-many: 1 <1st-entity> can have/belong to many <2nd-entity>
+   many-many: 1 <1st-entity> can have/belong to many <2nd-entity>; 1 <2nd-entity> can have/belong to many <1st-entity>
+   (in case of many-many or many-1, never start the wording in reference to the <1st-entity> to avoid confusion. Start with the <2nd-entity>)
+   (never consider many-1. swap the reference to the <2nd-entity> and convert the relation to 1-many)
+
+If a relation is not clear, ask the interviewer. "Can a post have multiple media?" The relation depends on his answer.
+
+If there's a many-many relationship between two entities, then be catious because it will be hard to do it.
+
+If there's a many-many relationship, then you need to resolve this relationship first.
+   A many-many relationship is generally resolved by creating and using an another table called Junction table.
+   A Junction table will have 2 FKs, one unique identifier from each table (plus some other attributes ofcourse).
+   Name the Junction table as what relationship is served between the tables. (student + course -> enrollment, doctor + patient -> appointment)
+   Have a 'id' & 'created_at' attributes in this table too just like others; this will make you have atleast 4 attributes in the Junction table now itself.
+
+You will rarely find a table WITHOUT any relation to any other table.
+
+
+
+Think about indexes at the very end, after all the steps. Because indexes are not part of the requirements. They are for performance.
+   Complete the requirements first.
+
+
+------------------------------------------------------------------------------------------------
+
+Basic Rule:
+
+1. What are the things?
+→ Entities (tables)
+
+2. What do I know about each thing?
+→ Attributes (columns)
+
+3. How are the things connected?
+→ Relationships
+
+4. How many can connect to how many?
+→ Cardinality (1-1, 1-many, many-many)
+
+5. What uniquely identifies each thing?
+→ Primary keys
+
+6. What rules must always be true?
+→ Foreign keys, NOT NULL, UNIQUE, CHECK etc.
+
+7. What questions will the application ask the database?
+→ Query validation + indexes
+
+------------------------------------------------------------------------------------------------
+
+Consider a table 'user' with certain attributes user_id, name, email, age:
+
+| user_id | name  | email               | age |
+| ------- | ----- | ------------------- | --- |
+| 1       | Rahul | rahul@gmail.com     | 25  |
+| 2       | Priya | priya@gmail.com     | 30  |
+| 3       | Amit  | amit@gmail.com      | 22  |
+| 4       | Neha  | neha@gmail.com      | 28  |
+
+Each user will have exactly 1 value for each attribute.
+This concludes that a user is contrained to have 1 value for each attribute.
+
+But let's say I try to add another attribute called 'post_id' in this table, then it will not make sense to add,
+because a user can have multiple posts (1-many).
+So the constraint rule of having exactly 1 value for each attribute will fail.
+We cannot have an array as the value of an attribute.
+
+Now consider this table 'post' with attributes post_id, post_content:
+
+| post_id | post_content       |
+| ------- | ------------------ |
+| 101     | Hello world!       |
+| 102     | Learning SQL today |
+| 103     | Nice weather today |
+| 104     | Had a great day!   |
+
+Now let's say I want to add an attribute called user_id in this table.
+Can I add it keeping in my the constraint rule of having 1 value for each attribute?
+Yes, because each post will have exactly one user_id:
+
+| post_id | post_content       | user_id |
+| ------- | ------------------ | ------- |
+| 101     | Hello world!       |    1    |
+| 102     | Learning SQL today |    2    |
+| 103     | Nice weather today |    1    |
+| 104     | Had a great day!   |    3    |
+
+Therefore in 1-many relation, the many (post) references the 1 (user), not the other way around,
+because that will contraint the many (post) to have exactly one 1 (user), which is correct.
+
+In a 1-many relationship, the foreign key is normally placed on the "many" side.
+This allows each row on the "many" side to reference exactly one row on the "one" side,
+while the same referenced ID can appear in many rows in the "many" side.
+
+------------------------------------------------------------------------------------------------
+
+SQL Injection:
+You should use parameterized queries, not string concatenation to eliminate SQL Injections:
+// ❌ Don't do this
+`SELECT * FROM users WHERE id = ${userId}`
+// ✅ Parameterized
+`SELECT * FROM users WHERE id = $1`
+
+Example:
+const query = `SELECT * FROM users WHERE email = '${email}'`;
+   -> If 'email' contains malicious SQL, you've created an injection vulnerability.
+const query = `SELECT * FROM users WHERE email = $1`;
+await db.query(query, [email]);
+   -> The database driver treats the value as data, not executable SQL.
+
+------------------------------------------------------------------------------------------------
+
+ORM vs raw SQL vs Stored Procedures:
+Different places where you can put your database logic.
+
+ORM:
+Object-Relational Mapping; A library/package, example: Prisma.
+const users = await prisma.user.find({
+  where: { age: 28 }
+});
+-> The ORM generates SQL for you:
+   SELECT * FROM users WHERE age = 28;
+Examples: Prisma (you have seen this in various JDs)
+Use ORM for common and simple application CRUD operations.
+Advantages: Less SQL to write, Easier CRUD operations
+Disadvantages: Complex queries can become awkward, You may not know what SQL is actually being generated
+
+Raw SQL:
+Logic is in your Node.js application; Query written by you; You explicitly control the SQL.
+Your Node.js code directly sends SQL:
+   const result = await db.query(
+   `SELECT id, name
+      FROM users
+      WHERE age = $1`,
+   [28]
+   );
+Use raw SQL when you need precise control over the queries wrt performance, security, complexity.
+Advantages: Maximum control over the query, Easier to optimize complex queries
+Disadvantages: More SQL quries if you don't know about them, More responsibility for parameterization/security (SQL Injection)
+
+Stored Procedure:
+Logic lives inside the database.
+Instead of Node.js sending the complete logic, you create a procedure/function in the database (not using SQL queries though):
+   CREATE PROCEDURE get_user(...)
+   BEGIN
+      -- database-side logic
+   END;
+Node.js simply calls the procedure:
+   await db.query(
+      'CALL get_user(123)'
+   );
+The business/data operation is largely inside the DB.
+Advantages: Database-side execution, Good for operations requiring Transactions or long complex tasks
+Disadvantages: Business logic becomes tied to the database, Database-specific syntax, now need to maintain both application & DB code
+
+             DATABASE
+                ↑
+       ┌────────┼────────┐
+       │        │        │
+      ORM     Raw SQL  Stored Procedure
+       ↑        ↑        ↑
+       │        │        │
+    App code  App code  DB code
+                         ↑
+                         │
+                     App code
+
+------------------------------------------------------------------------------------------------
+
+Raw SQL Queries
+
+SQL keywords are NOT case sensitive: select is the same as SELECT.
+The convention it to keep SQL commands in uppercase, and table names, attribute names etc in lowercase or snake_case.
+
+Some database systems require a semicolon at the end of each SQL statement.
+Semicolon is the standard way to separate each SQL statement in database systems that allow 
+more than one SQL statement to be executed in the same call to the server.
+
+SERIAL: A special integer datatype that automatically adds 1 to the every new attribute.
+We do not edit the attribute having SERIAL datatype manually, and let database do it on its own.
+CREATE TABLE profile(
+   id SERIAL PRIMARY KEY,     -> make the attribute having SERIAL datatype as PRIMARY KEY
+   name VARCHAR(255),
+   password TEXT,
+   age INT
+);
+
+An SQL keyword cannot be directly used as a table or attribute name.
+To use them in queries, we need to wrap them in double quotes ("").
+CREATE TABLE user(...);  -> Error: 'user' is a keyword in SQL
+CREATE TABLE "user"(...); -> works
+Note: the double quotes need to be added in all the queries for the table/attribute name whenever they are used.
+
+We follow the convention to put table/attributes name in "", and text values in '':
+INSERT INTO "user"(email, name, age, password)
+VALUES ('chris@abc.com', 'Chris Thomas', 25, 'hghfgs32'); 
+
+A table name is kept singular as a naming convention.
+
+Some of The Most Important SQL Commands:
+   SELECT            -  extracts data from a database
+   WHERE             -  filters data in a table
+   UPDATE            -  updates data in a database
+   DELETE            -  deletes data from a database
+   INSERT INTO       -  inserts new data into a database
+   CREATE DATABASE   -  creates a new database
+   ALTER DATABASE    -  modifies a database
+   CREATE TABLE      -  creates a new table
+   ALTER TABLE       -  modifies a table
+   DROP TABLE        -  deletes a table
+   CREATE INDEX      -  creates an index (search key)
+   DROP INDEX        -  deletes an index
+
+1. SELECT ... FROM: The SELECT statement is used to select data from a database.
+SELECT column1, column2, ...
+FROM table_name;
+
+SELECT * FROM Customers;
+SELECT CustomerName, City FROM Customers;
+
+* means all columns, not all rows. (don't say all data because it's too generic)
+
+2. SELECT DISTINCT: The SELECT DISTINCT statement is used to return only distinct (unique) values.
+SELECT DISTINCT column1, column2, ...
+FROM table_name;
+
+SELECT DISTINCT Country FROM Customers;
+
+3. WHERE ... <operator>: The WHERE clause is used to extract only those records that fulfill a specific condition.
+SELECT column1, column2, ...
+FROM table_name
+WHERE condition;
+
+SELECT * FROM Customers
+WHERE Country = 'Mexico';
+
+SQL requires quotes around text values.
+However, numeric fields should not be enclosed in quotes:
+SELECT * FROM Customers
+WHERE CustomerID = 1;
+
+You can use other operators than the = operator to filter:
+SELECT * FROM Customers
+WHERE CustomerID > 80;
+Operator	          Description
+=	                  Equal	
+>	                  Greater than	
+<	                  Less than	
+>=	                  Greater than or equal	
+<=	                  Less than or equal	
+<> or !=	            Not equal
+LIKE	               Search for a pattern	
+IN	                  To specify multiple possible values for a column
+IS/IS NOT            for checking NULL
+
+
+4. ORDER BY: The ORDER BY keyword is used to sort the result-set in ascending or descending order.
+It sorts the result-set in ascending order (ASC) by default.
+SELECT column1, column2, ...
+FROM table_name
+ORDER BY column1, column2, ... ASC|DESC;
+
+SELECT * FROM Products
+ORDER BY Price;
+
+SELECT * FROM Products
+ORDER BY Price DESC;
+
+ORDER BY Several Columns:
+SELECT * FROM Customers
+ORDER BY Country, CustomerName;
+SQL reads this from left to right and sorts based on the priority from left to right.
+
+ORDER BY column1 DESC, column2, column3 DESC, column4 ASC, ...; ->
+Priority 1: column1 → by direction given (DESC)
+Priority 2: if it has tied rows in the previously sorted column (column1), sort those rows on column2 → by direction given (ASC)
+Priority 3: if it has tied rows in the previously sorted column (column2), sort those rows on column3 → by direction given (DESC)
+Priority 4: if it has tied rows in the previously sorted column (column3), sort those rows on column4 → by direction given (ASC)
+...
+
+5. UPDATE ... SET:
+The UPDATE statement is used to update or modify one or more records (rows) in a table.
+UPDATE table_name
+SET column1 = value1, column2 = value2, ...
+WHERE condition;
+
+The WHERE clause determines which records will be updated.
+If you omit the WHERE clause, all records in the table will be updated.
+
+UPDATE Customers
+SET ContactName = 'Alfred Schmidt', City= 'Frankfurt'
+WHERE CustomerID = 1;
+
+6. DELETE:
+The DELETE statement is used to delete existing records in a table.
+DELETE FROM table_name WHERE condition;
+
+The WHERE clause specifies which record(s) should be deleted.
+If you omit the WHERE clause, all records in the table will be deleted.
+
+DELETE FROM Customers WHERE CustomerName='Alfreds Futterkiste';
+
+7. Add a FOREIGN KEY:
+CREATE TABLE posts(
+   post_id INT PRIMARY KEY,
+   post_content VARCHAR(255),
+   user_id INT,
+   FOREIGN KEY(user_id)             -> user_id should be present as an attribute while creating a table (above line)
+      REFERENCES users(user_id)
+);
+
+ALTER TABLE posts
+ADD CONSTRAINT fk_user
+FOREIGN KEY(user_id)                -> user_id should be existing as an attribute while alterting the table
+REFERENCES users(user_id);
+
+8. INSERT INTO:
+The INSERT INTO statement is used to insert new records in a table.
+It is possible to write the INSERT INTO statement in two ways:
+INSERT INTO table_name (column1, column2, column3, ...)
+VALUES (value1, value2, value3, ...);
+If you insert values for ALL the columns of the table, you can omit the column names.
+However, the order of the values must be in the same order as the columns in the table:
+INSERT INTO table_name
+VALUES (value1, value2, value3, ...);
+Insert multiple values:
+INSERT INTO table_name (column1, column2, column3, ...)
+VALUES
+(value1, value2, value3, ...),
+(value1, value2, value3, ...);
+
+INSERT INTO users (user_id, name, email, age)
+VALUES
+(1, 'Rahul', 'rahul@example.com', 25),
+(2, 'Priya', 'priya@example.com', 30),
+
+9. JOIN:
+JOIN is used to merge/combine rows having selected columns from two or more tables, based on a related column between them.
+
+
+
+Merge/combine rows visualization:
+
+ ______________                           _______________
+|____|____|____|   ------>   +   <------ |__|___|____|___|
+row from table1                        row from table2
+having user_id = 1                     having user_id = 1
+                       ______________
+                  =   |__|__|__|__|__|
+                     output row having 
+                     selected columns with
+                        user_id = 1
+
+(INNER) JOIN: Returns only rows that have matching values in both tables
+LEFT (OUTER) JOIN: Returns all rows from the left table, and only the matched rows from the right table
+RIGHT (OUTER) JOIN: Returns all rows from the right table, and only the matched rows from the left table
+FULL (OUTER) JOIN: Returns all rows when there is a match in either the left or right table
+
+The type of JOIN depends on the task and the wording.
+"Get all customers alongwith their orders, but only for customers who have placed an order." -> Inner JOIN
+
+Aliases (using AS):
+Sometimes the table names could be very big. We can use aliases of those tables instead of using their big names again and again.
+Before:
+   SELECT "user".id, "user".name, "order".id
+   FROM "user"
+   INNER JOIN "order"
+   ON "user".id = "order".user_id;
+After:
+   SELECT u.id, u.name, o.id
+   FROM "users" AS u
+   INNER JOIN "order" AS o 
+   ON u.id = o.user_id;
+
+
+
+
+
+
+When to use JOINs:
+1. Recombine Data (biggest reason):
+Combine all or certain data (columns) about a specific topic/scenario/condition from different sources (tables) in order to see its bigger picture.
+   SELECT * FROM user JOIN post ON user.user_id = post.user_id;
+   We are trying to get a bigger picture about users by trying to get their orders as well.
+
+2. Data Enrichment (getting a bit extra data):
+Enhance a table which we are concerned with by fetching some data from another table based on an id.
+
+3. Check for existence (IS NULL/IS NOT NULL):
+Check if certain information regarding a data is existing in another table.
+
+[
+   No JOIN:
+   SELECT * from table1;
+   SELECT * from table2;
+]
+
+a. INNER JOIN:
+Return only matching rows from both tables.
+   If a user_id from table1 is not present in the table2, then the user info for that user_id will not be present in the result.
+   There will not be any row with that user_id in the result.
+
+JOIN and INNER JOIN will return the same result.
+INNER is the default join type for JOIN, so when you write JOIN the parser actually writes INNER JOIN.
+
+SELECT column_name(s)
+FROM table1
+JOIN table2
+ON table1.column_name = table2.column_name;
+
+SELECT ProductID, ProductName, CategoryName
+FROM Product
+JOIN Category ON Product.CategoryID = Category.CategoryID;
+
+Naming the Columns: It is a good practice to also include the table name when specifying columns in SQL joins
+SELECT Product.ProductID, Product.ProductName, Category.CategoryName
+FROM Product
+JOIN Category ON Product.CategoryID = Category.CategoryID;
+
+There is no SQL rule as to which table should be table1 and which be table2 for INNER JOIN. (but there is for LEFT/RIGHT JOIN)
+Both the tables would have same priority in both the scenarios.
+But conventionally, you can consider table1 from "one" side and table2 from "many" side.
+
+SELECT * FROM user JOIN post ON user.user_id = post.user_id;  vs
+SELECT * FROM post JOIN user ON post.user_id = user.user_id;  ->
+
+The above two queries will produce the same matching data, BUT the column order will be different.
+For the 1st query: user columns → post columns
+For the 2nd query: post columns → user columns
+Rule used above: table1 JOIN table2, so table1 columns → table2 columns
+
+Once you've joined the tables, you can select columns from either table, in any order:
+You can reverse the order of the selected columns;
+You can select multiple columns from one table;
+Mix them however you want.
+After the JOIN, think of the query as having access to the columns of both tables.
+
+BUT, if both tables have a column with the same name, such as 'user_id', it's better to specify the table by naming the columns:
+SELECT user.user_id, post.user_id
+FROM user
+JOIN post
+ON user.user_id = post.user_id;
+
+If you have to imagine how INNER JOIN works through code:
+for(let i = 0; i < user.rows.length; i++) {
+   const id = user.rows[i].id;
+   for(let j = 0; j < order.rows.length; j++) {
+      const user_id = order.rows[j].user_id;
+      if(id === user_id) {
+         console.log(user.rows[i].row1, user.rows[i].row2, ..., order.rows[j].row1, order.rows[j].row2, ...);
+      }
+   }
+}
+id of each row from user will check user_id from each row of order and keep returning the result,
+because one user can have multiple orders too.

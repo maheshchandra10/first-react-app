@@ -164,10 +164,10 @@ export default function RandomUsers() {
 
                                         <span
                                             className={`rounded-full px-2.5 py-1 text-xs font-medium ${user.role === "admin"
-                                                    ? "bg-red-500/10 text-red-600 dark:text-red-400"
-                                                    : user.role === "moderator"
-                                                        ? "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400"
-                                                        : "bg-green-500/10 text-green-600 dark:text-green-400"
+                                                ? "bg-red-500/10 text-red-600 dark:text-red-400"
+                                                : user.role === "moderator"
+                                                    ? "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400"
+                                                    : "bg-green-500/10 text-green-600 dark:text-green-400"
                                                 }`}
                                         >
                                             {user.role}
@@ -318,3 +318,33 @@ export default function RandomUsers() {
 
 }
 
+
+//AbortController:
+
+// useEffect(() => {
+//     const controller = new AbortController();    ...new line
+
+//     async function fetchUser() {
+//         try {
+//             const response = await fetch(
+//                 `/api/users/${userId}`,
+//                 { signal: controller.signal }    ...new line
+//             );
+
+//             const data = await response.json();
+//             setUser(data);
+//         } catch (error) {
+//             if (error.name !== "AbortError") {    ...new line
+//                 setError(error);
+//             }
+//         }
+//     }
+
+//     fetchUser();
+
+//     return () => {
+//         controller.abort();                      ...new line
+//     };
+// }, [userId]);
+
+//AbortController is comparable to switchMap() of RxJS
