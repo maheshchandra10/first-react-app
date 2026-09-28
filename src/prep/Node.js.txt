@@ -1,0 +1,740 @@
+Node.js:
+Node.js is an open-source, cross-platform, JavaScript runtime environment.
+It is a tool that allows you to run JavaScript outside of the browser on the server-side.
+It has event-driven, non-blocking, asynchronous architecture.
+
+Event-driven architecture:
+Instead of constantly checking whether something has happened,
+Node.js waits for events to occur and then runs the appropriate callback/handler when they occur.
+The event can be an incoming http request, completing http request, a timer, completion of the DB operation etc;
+mostly completion of an operation. But a lot of times start of an operation can be an event too.
+
+Synchronous programming:
+Tasks execute one after another 'sequentially'.
+The next task has to wait for the current task to be completed, because the program is blocked performing the current task.
+Poor performance.
+
+Asynchronous programming:
+Tasks execute 'concurrently' without blocking other tasks.
+
+How does Node.js achieve asynchronous programming?
+Using its event-driven, non blocking i/o architecture.
+
+How to handle asynchronous operations?
+Callbacks, promises, async await
+
+------------------------------------------------------------------------------------------------
+
+Event Loop
+
+Event Loop is a design pattern that orchestrates or coordinates the execution of synchronous & asynchronous code in Node.js.
+The Event Loop is a loop that runs continuously as long as the Node.js application is up and running, handling multiple operations executing concurrently.
+(The event loop keeps checking for work that is ready to execute and schedules that work to the JavaScript Call Stack IF it is empty)
+
+Asynchronous code execution in Node.js with Event Loop:
+1. The main thread of execution always starts in the global scope. The global function is pushed onto the Call Stack.
+2. Asynchronous operation encountered in the global function are off-loaded to libuv.
+3. Once the asynchronous operation is completed and its callback is eligible to be executed,
+   Event Loop schedules it on to the Call Stack based on certain priorities, for the main thread to execute it and pop it off.
+4. When there's no more code to run, the global function is also popped off the Call Stack.
+
+Event Loop Queues:
+There are 6 different queues in every loop,
+each holding one or more callback functions that need to be executed on the Call Stack eventually.
+
+1. Timer Queue (part of libuv):
+Holds callbacks associated with setTimeout() and setInterval().
+
+2. I/O Queue (part of libuv):
+Contains callbacks associated with all the async methods such as methods associated with the fs and http modules.
+
+3. Check Queue (part of libuv):
+Holds callbacks associated with the setImmediate() function.
+
+4. Close Queue (part of libuv):
+Holds callbacks associated with the close event of an async task (socket.on('close', ...), etc).
+
+5. nextTick Queue (part of Node.js core):
+Holds callbacks associated with the process.nextTick() function.
+
+6. Promise Queue (part of V8 Engine): 
+Holds callbacks associated with the native Promise in JavaScript.
+
+   nextTick Queue & Promise Queue are both known as Microtask Queues. 
+
+
+How Event Loop works
+
+The priority order of the queues:
+
+0. First, all user-written synchronous JavaScript code takes priority over async code.
+   This means that only after the Call Stack is empty does the Event Loop come into play.
+
+1. Any callbacks in the Microtask Queues are executed.
+      First, tasks in the nextTick Queue, and only then tasks in the Promise Queue.
+2. All callbacks within the Timer Queue are executed (Timers Phase). -> but may not execute continuously one-after-another because of the Microtask Queues priority (see the next pointer)
+      These represent expired timer callbacks that are now ready to be processed.
+3. Callbacks in the Microtask Queues (if present) are executed after every callback in the Timer Queue.
+      First, tasks in the nextTick Queue, and then tasks in the Promise Queue.
+4. All callbacks within the I/O Queue are executed (Poll Phase).   -> but may not execute continuously one-after-another because of the Microtask Queues priority
+5. Callbacks in the Microtask Queues (if present) are executed after every callback in the I/O Queue.
+      First, tasks in the nextTick Queue, and then tasks in the Promise Queue.
+6. All callbacks in the Check Queue for the setImmediate() function are executed (Check Phase). -> but may not execute continuously one-after-another because of the Microtask Queues priority
+7. Callbacks in the Microtask Queues (if present) are executed after every callback in the Check Queue.
+      First, tasks in the nextTick Queue, and then tasks in the Promise Queue.
+8. All callbacks in the Close Queue are executed (Close Callbacks Phase).   -> but may not execute continuously one-after-another because of the Microtask Queues priority
+9. For one final time in the same loop, the Microtask Queues are executed after every callback in the Close Queue.
+      First, tasks in the nextTick Queue, and then tasks in the Promise Queue.
+
+Note: The Event Loop moves through these phases, but whether callbacks are actually processed in a phase depends on what's ready,
+      and the Poll Phase has special behavior around wait-time for I/O (eg the callback of setTimeout(..., 5000) will be eligible after atleast 5 secs of waiting).
+
+If there are more callbacks to be processed at this point, the loop is kept alive for one more run, and the same steps are repeated.
+On the other hand, if all callbacks are executed and there is no more code to process, the Event Loop exits.
+
+After each callback (from no matter which Phase): Tasks in the nextTick Queue -> tasks in the Promise Queue
+
+Timers Phase -> Poll Phase -> Check Phase -> Close Callbacks Phase
+(More callbacks? Repeat the loop)
+
+Complete Phases:
+Timers Phase -> Pending Callbacks Phase -> Idle, Prepase Phase -> Poll Phase -> Check Phase -> Close Callbacks Phase
+
+Pending Callbacks Phase: Executes callbacks for some system operations
+Idle, Prepare Phase: Internal Node.js/libuv preparation work before the Poll Phase.
+
+Few asynchronous operations categorized as per priority:
+process.nextTick()                     → nextTick Queue
+Promise.then()/.catch()                → Promise Queue
+setTimeout()/setInterval()             → Timers Queue
+fs / network/ I/O                      → Poll Queue
+setImmediate()                         → Check Queue
+socket.on("close",...)/server.close()  → Close Callbacks Queue
+
+Always practice this code:
+
+console.log("start");
+
+async function foo1() {
+  console.log("A");
+  await foo2();
+  console.log("B");
+}
+
+async function foo2() {
+  console.log("C");
+}
+
+setTimeout(() => {
+  console.log("D");
+}, 0);
+
+foo1();
+
+new Promise((resolve) => {    //learn about Promise constructor and executor
+  console.log("E");
+  resolve();
+}).then(() => {
+  console.log("F");
+});
+
+console.log("end");
+
+//start A C E end B F D
+
+Explanation:
+The key is to separate synchronous code, microtasks (Promise/await), and macrotasks (setTimeout).
+
+1. console.log("start"); -> start
+
+2. foo1() is called
+Inside foo1:
+console.log("A"); -> A
+await foo2();
+Before await can suspend foo1, foo2() itself is called.
+The synchronous portion of an async function (foo2) executes immediately.
+async function foo2() {
+  console.log("C");  -> C
+}
+Now await says, essentially: "Pause foo1 here. Continue the rest (console.log("B")) as a Microtask." So foo1 is suspended at this point.
+(await always suspends the async function, even when the Promise you're awaiting is already fulfilled)
+   async function foo2example() {
+      // JavaScript creates a Promise for the async function
+      // ...
+      console.log("C");
+      // function reached the end successfully
+      // → fulfill the Promise
+   }
+(If an async function reaches the end normally, without throwing an error, the Promise it returned is automatically fulfilled with undefined)
+
+3. setTimeout is registered. The callback goes into the task/macrotask queue.
+
+4. The Promise constructor runs synchronously:
+new Promise((resolve) => {
+  console.log("E");  -> E
+  resolve();
+})
+The executor passed to new Promise() runs immediately, synchronously. Therefore E gets logged.
+The .then() callback is scheduled as a Microtask.
+
+5. console.log("end"); -> end
+
+6. Now the event loop gets involved.
+The Microtask queue is processed before the timer.
+First:
+   await foo2();
+   console.log("B"); -> B
+Then the .then() callback:
+   console.log("F"); -> F
+Only after all microtasks are finished does the timer execute:
+   console.log("D"); -> D
+
+
+CALL STACK
+──────────────
+start
+A
+C
+E
+end
+──────────────
+        ↓
+MICROTASK QUEUE
+──────────────
+B
+F
+──────────────
+        ↓
+TIMER / MACROTASK
+──────────────
+D
+
+------------------------------------------------------------------------------------------------
+
+| Callback                   |       Queue      |   Queue owner   | Who schedules it on the Call Stack for execution? |
+| -------------------------- |------------------| --------------- | ------------------------------------------------- |
+| Macrotask (I/O, timer)     | Macrostask queue | libuv           | Event Loop                                        |
+| Microtask (Promises)       | Microtask queue  | V8 Engine       | V8 Engine                                         |
+| (Promise.then(), await)                                                                                             |     
+| nextTick()                 |  nextTick queue  | Node.js         | Node.js                                           |
+| (a special Microtask)                                                                                               |
+
+The Call Stack itself is managed by the JavaScript's V8 Engine.
+
+------------------------------------------------------------------------------------------------
+
+package.json:
+Contains the details, settings, dependencies of a project.
+It helps node.js know how to run the project, and what tools it needs to run the project.
+
+Express.js:
+Express.js is a Node.js web framework built on top of Node.js. It enhances the features of Node.js by providing features like routing,
+middleware, request/response handling etc.
+
+V8 Engine:
+The V8 Engine is Google's high-performance JavaScript engine that power both Chrome and Node.js. It uses just-it-time compilation.
+
+libuv:
+libuv is a cross-platform C library that supports Node.js's asynchronous i/o operations,
+and implements the concept of Event Loop and Thread Pool.
+It is responsible for handling asynchronous methods.
+Whenever we execute an asynchronous task, libuv takes over the execution of the task.
+   libuv then runs the task using native asynchronous mechanisms of the operating system.
+   In case the native mechanisms are not available or inadequate, it utilizes its Thread Pool to run the task,
+   ensuring that the main thread is not blocked.
+   
+Node Package Manager (npm):
+Default package manager for Node.js.
+
+Streams in Node.js:
+Streams is a mechanism of reading/writing data in continuous chunks rather than loading everything into memory at once,
+improving performance and memory efficiency for large files.
+Buffer: A fixed-size chunk of raw binary data used for handling bindary content like images, videos etc efficiently
+
+Clusters:
+Clusters in Node.js are multiple instances of a Node.js application running as separate worker processes across multiple CPU cores,
+allowing the application to utilize multiple CPU cores and handle more requests concurrently.
+Each cluster has its own Event Loop and memory.
+It handles more 'concurrent' tasks efficiently by distributing incoming requests.
+Clustering gives you:
+             Incoming requests
+                    ↓
+             ┌─────────────┐
+             │ Distribution│
+             └──────┬──────┘
+                    ↓
+       ┌────────────┼────────────┐
+       ↓            ↓            ↓
+    Worker 1     Worker 2     Worker 3
+    Event Loop   Event Loop   Event Loop
+Now different workers can execute JavaScript on different CPU cores.
+A Thread is a unit within a Process.
+
+Worker Threads:
+Worker Threads in Node.js allow you to run JavaScript code in separate threads within the same Node.js process.
+They enable 'parallel' execution of tasks in separate threads.
+Node.js Process
+│
+├── Main Thread → Event Loop
+│
+├── Worker Thread for heavy calculation
+│
+└── Worker Thread for heavy calculation
+
+------------------------------------------------------------------------------------------------
+
+Memory Leak in Node.js:
+Memory leaks occur when Node.js application retains references to unused objects, preventing garbage collection and gradually
+consuming more and more memory overtime.
+Identify them using Heap Snapshots, or by inspecting requests in network tab.
+
+Thread Pool executes CPU-intensive tasks offloaded to it by the Event Loop.
+It can handle 4 CPU-intensive tasks parallely at once by default.
+Threads in Thread Pool: minimum 4, maximum 128
+Variable that stores the number of Threads in the Thread Pool: process.env.UV_THREADPOOL_SIZE -> 4
+To increase/decrease the number of Threads in a Thread Pool, write ->
+process.env.UV_THREADPOOL_SIZE = <number of threads>;
+process.env.UV_THREADPOOL_SIZE = 10; or process.env.UV_THREADPOOL_SIZE = 2;
+
+Security best practices in Node.js:
+express-validator middleware, helmet middleware, dotenv to store env variables, JWT, CSRF token, express-rate-limit middleware, npm audit
+
+------------------------------------------------------------------------------------------------
+
+Garbage Collection in JavaScript:
+Automatically finding unreachable objects and reclaiming their memory.
+JavaScript's Garbage Collector (GC) detects memory that is no longer reachable by the program (code) and releases it.
+
+let user = {
+  name: "Mahesh"
+};
+The object cannot be garbage collected right now.
+user = null;
+The object is no longer reachable by the program. The GC can eventually reclaim that memory.
+Important: null doesn't directly "delete the object." It removes one reference to it. Some other variable might still be refering to it.
+           If no other references exist, the object becomes eligible for GC.
+
+Mark-and-Sweep:
+GC algorithm for garbage collection.
+Phase 1 — Mark: The GC starts from the roots and marks everything reachable.
+Root
+ ↓
+ A ───→ B
+ ↓
+ C
+All three are marked.
+
+Phase 2 — Sweep: Anything that wasn't marked is considered unreachable and can be reclaimed.
+Root
+ ↓
+ A → B
+C → D
+
+C and D are unreachable
+So:
+A, B → retained
+C, D → eligible for collection
+
+Object is unreachable
+      ↓
+GC can reclaim it
+
+
+Memory Leaks:
+A memory leak happens when something that is no longer logically needed by your application remains reachable.
+
+Common JavaScript memory leaks:
+-Accidental global references: If a property becomes a global variable accidentally, it can remain reachable for the lifetime of the application.
+-Forgotten event listeners: If you repeatedly create things and attach listeners without cleaning them up, references can remain alive longer than intended.
+   element.addEventListener("click", handler);
+-Timers: If you forget to clear an interval that should have stopped, the callback and anything it closes over may remain reachable.
+   setInterval(() => {
+      // something
+   }, 1000);
+-Closures: If a long-lived object holds a Closure that references a large object, that large object cannot be garbage-collected.
+
+Closures and Memory Leaks:
+function createCounter() {
+  let count = 0;
+  return function () {
+    return ++count;
+  };
+}
+const counter = createCounter();
+The returned function references count. Therefore count stays alive because it is still reachable through the function.
+But,
+counter = null;
+If nothing else references that function/environment, the Closure and its captured data can eventually become garbage.
+So Closures do not inherently cause memory leaks.
+A closure only keeps things alive as long as something reachable still holds the Closure.
+
+Garbage Collection can affect performance:
+Imagine a Node.js process has a huge amount of live memory:
+Heap: ████████████████████████████████
+The GC has more objects/references to examine.
+Collection can therefore consume CPU and can contribute to pauses or latency.
+
+Object is no longer logically needed
+        ↓
+BUT something still references it
+        ↓
+Object remains reachable
+        ↓
+GC cannot reclaim it
+        ↓
+Memory Leak
+
+A memory leak isn't necessarily:
+"The GC failed."
+Often the GC is doing exactly what it should. Your program accidentally kept the object reachable -> Bad code
+
+"How does garbage collection work in JavaScript?"
+-"JavaScript uses automatic Garbage Collection. The engine determines whether objects are still reachable from GC Roots.
+A common underlying approach is Mark-and-Sweep: it marks reachable objects starting from the roots and then reclaims unreachable objects.
+Memory Leaks can still happen when objects that are logically no longer needed remain reachable,
+for example through forgotten event listeners, timers, global references, or unbounded caches."
+
+
+Techniques to detect Memory Leaks in JavaScript:
+
+The most reliable way to detect Memory Leaks is to monitor Heap growth and compare Heap Snapshots before/after suspicious actions using Chrome DevTools,
+or equivalent tools in Node.js.
+
+In Browser:
+-Using Heap Snapshots:
+   1. Open DevTools → Memory panel and select Heap Snapshot.
+   2. Take a baseline snapshot right after page load (or on a stable page).
+   3. Amplify the leak: repeat the suspicious interaction (e.g., open/close modal, navigate, submit form) 5–10 times.
+   4. Take a second (target) snapshot.
+   5. Compare snapshots: switch the view to Comparison, set the baseline, and sort by Size Delta or New to see what’s growing.
+   6. Inspect retainers: check the Retainers pane to find what’s keeping them alive (e.g., event listeners, closures, caches etc).
+
+In Node.js:
+-Heap Snapshots: Use --inspect (node --inspect app.ts) and connect Chrome DevTools, then take Heap Snapshots from the Memory tab just like in the browser and follow the above steps.
+-You can also use console.log(process.memoryUsage()) at suspicious placces and compare values like heapUsed, heapTotal etc.
+-Run your server under any profiler (eg clinic.js) to capture heap profiles and identify growing allocations.
+
+Common JavaScript leak patterns to look for in the Heap Snapshots:
+-Detached DOM nodes (elements removed from the DOM but still referenced by JS)
+-Closures holding large data (event handlers, timers, promises that capture big objects)
+-Global variables / singletons that accumulate items (arrays, maps, caches) without cleanup
+-Event listeners not removed when components unmount or pages navigate away
+
+Heap:
+In JavaScript (V8), the Heap is the large, dynamically managed region of memory where all objects, arrays, functions, closures, Maps/Sets, and most strings live.
+
+Stack:
+Stack has variables that hold primitive values (number, boolean, null, undefined) and references (pointers) into the Heap.
+
+The Heap is a big pool used for values whose size/lifetime isn’t known at compile time (objects, arrays, functions). Allocation uses pointers/references.
+Unlike the Stack, you don’t manually free Heap memory.
+V8’s GC periodically finds objects that are no longer reachable and reclaims their space.
+
+| Aspect         | Stack                                | Heap                                                                                        |
+| -------------- | ------------------------------------ | ------------------------------------------------------------------------------------------- |
+| What’s stored  | Primitives and references to objects | Objects, arrays, functions, closures, Map/Set, most strings, anything allocated dynamically |
+| Lifetime       | Tied to function execution (LIFO)    | Lives until no references remain and GC reclaims it                                         |
+| Size limits    | Small, fixed per thread/process      | Large, grows as needed (up to process limits)                                               |
+| Access pattern | Very fast, contiguous                | Slower, pointer‑based, non‑contiguous                                                       |
+
+Example:
+let x = 42;                 // 42 (primitive) lives on the Stack
+let obj = { a: 1, b: 2 };   // the object { a:1, b:2 } lives on the Heap; 'obj' on the Stack holds a reference to it
+
+Why “Heap Snapshot” matters for leaks:
+A Heap Snapshot is a point‑in‑time map of all alive Heap objects.
+By comparing snapshots before/after an action, you see which objects should have been garbage-collected but are still retained, causing the Memory Leak.
+
+------------------------------------------------------------------------------------------------
+
+Authentication problem: 401 Unauthorized
+Authorization problem: 403 Forbidden
+
+------------------------------------------------------------------------------------------------
+
+
+Throttling & Debouncing:
+Both are techniques for handling too many calls happening too frequently.
+
+Throttling:
+Execute at most once within a given time interval.
+throttle(fn, 1000);  -> "Even if fn is called 100 times, allow it to execute at most once every 1 second."
+This is useful for things like:
+-rate limiting
+-expensive operations
+-preventing excessive calls to external services
+
+Call → EXECUTE
+1000ms timer starts
+Call → discard
+Call → discard
+Call → discard
+1000ms timer ends
+Call → EXECUTE
+
+Debouncing:
+Execute the latest call only after calls have stopped for a specified amount of time.
+debounce(fn, 500);   -> "Every time fn is called, reset the timer. Execute the latest call only when there have been no calls for 500 ms."
+The latest function call executes once, after the burst has ended.
+
+Call → wait 500ms for execution
+Call → wait 500ms for execution (prev call discarded)
+Call → wait 500ms for execution (prev call discarded)
+500ms passes
+EXECUTE the last call
+
+"Throttling limits how frequently a function can execute, for example once every second, even if it is called many times.
+Debouncing delays execution until calls stop for a specified period, such as waiting 500 ms after the last call.
+Throttling is useful for continuous events or limiting execution frequency, while debouncing is useful for bursty events such as search input."
+
+------------------------------------------------------------------------------------------------
+
+Singleton:
+A particular object/class has only one shared instance within a Node.js process,
+and every part of the application that uses it gets access to that same instance.
+
+Node.js 'modules' are effectively singletons. Because Node.js caches modules after they are first loaded.
+So you don't normally need to manually implement the Singleton pattern for something that is naturally represented as a 'module'.
+
+Singleton-like objects are useful for things that you generally want one shared instance per process, such as:
+Database connection/pool
+Redis client
+Configuration
+Logger
+Certain service managers
+Cache managers
+
+"Singleton" in Node.js usually means one instance per Node.js process,
+not necessarily one instance across your entire application infrastructure.
+This distinction becomes particularly important when discussing clustering, PM2, Kubernetes, or multiple server instances.
+
+------------------------------------------------------------------------------------------------
+
+CSRF: Make the legitimate application (backend) perform an unwanted action using the victim's existing authentication.
+Request-origin protection- "Did this request actually come from my application/user interaction rather than being forged by another site?"
+Attacker can cause a request → but cannot read the legitimate site's CSRF token because of the browser's same-origin policy → therefore cannot forge a valid CSRF-protected request.
+Why would a user visit a malicious site in the first place? He can. What matters is that he visited the malicious site WHILE being logged into the real site.
+
+The browser automatically sends the Authentication cookie. That's what CSRF exploits. The attacker doesn't need to know the actual cookie value.
+
+Double-Submit Cookie:
+The server puts the CSRF token in a cookie, and the legitimate frontend reads that token and submits the same value in a request header.
+The server checks that the cookie value and header value match.
+
+Frontend puts the token into a header by reading it from the cookie:
+POST /api/transfer
+Cookie: sessionId=ABC123
+X-CSRF-Token: X7a92Kp81Z...
+
+So the same CSRF token has now been submitted twice:
+Cookie:
+csrfToken=X7a92Kp81Z...
+Header:
+X-CSRF-Token: X7a92Kp81Z...,
+which the server will check that the cookie value and header value match.
+
+Remember: All this is happening in the user's browser and the user is performing these actions, like visiting the malicious site, clicking something there etc.
+
+------------------------------------------------------------------------------------------------
+
+REST API:
+REST = REpresentational State Transfer
+An API designed according to the principles of REST.
+REST is an architectural style for designing network APIs. It defines principles for how a client and server should communicate over HTTP.
+REST = a set of guidelines for designing APIs that use HTTP resources and standard HTTP methods (GET, POST, PUT, PATCH, DELETE).
+Some principles:
+-URLs should represent nouns, not actions.
+   instead of:
+      POST /createUser
+      GET /getUser
+      POST /deleteUser
+   we generally follow this:
+      POST   /users
+      GET    /users
+      GET    /users/:id
+      PATCH  /users/:id
+      DELETE /users/:id
+-Use HTTP methods correctly (GET, POST, PUT, DELETE, PATCH)
+-Use HTTP status codes meaningfully
+-Keep APIs stateless
+   Each request should contain everything the server needs to process it.
+   The application shouldn't depend on remembering the client's previous request.
+-Design consistent, sensible code while designing API
+   Use consistent JSON structures, query params, error formats, pagination, filtering, etc.
+
+------------------------------------------------------------------------------------------------
+
+Handling CPU-heavy synchronous/asynchronous tasks through Workflow Engine:
+
+Workflow = the sequence of steps
+Queue = where work waits
+Worker = processes a piece of work by picking it from the queue OR gives it to Workflow Engine for a plugin to process
+Workflow engine = coordinates the overall process
+
+A workflow engine coordinates a multi-step process;
+It knows what steps need to run, in what order, what happens when they succeed or fail, and how the workflow progresses.
+
+
+┌──────────────┐
+│     UI       │
+└──────┬───────┘
+       │
+       │ POST /files/process (a CPU-heavy task)
+       │ 'invoice.pdf'
+       ↓
+┌──────────────┐
+│ Node.js API  │ 
+└──────┬───────┘
+       │
+       ↓
+┌──────────────┐
+│    Queue     │ 
+└──────┬───────┘
+       │
+       ↓
+┌──────────────┐
+│    Worker    │ 
+└──────┬───────┘
+       │
+       │ A Worker picks up the job and processes it, OR gives it to the Workflow Engine (in this flow we are giving it to the Workflow Engine)
+       ↓
+┌──────────────┐
+│   Workflow   │
+│   Engine     │
+└──────┬───────┘
+       │
+       ↓
+┌────────────────────────┐
+│     Plugin System      │
+│                        │
+│ Which plugin handles   │ pdf, image, video, excel, word?
+│ this file type?        │
+└─────┬──────────────────┘
+      │
+      │ .pdf
+      ↓
+┌─────────────┐
+│ PDF Plugin  │
+└─────┬───────┘
+      │
+      │ process('invoice.pdf'), communication done through gRPC 
+      ↓
+┌─────────────┐
+│ C++ Core    │
+│ Engine      │
+└─────┬───────┘
+      │
+      │ processed result
+      ↓
+┌──────────────┐
+│ Workflow     │  (The processed pdf eventually comes to the pipeline, whether a Worker processes it or a plugin)
+│ continues    │
+└─────┬────────┘
+      ↓
+Store result
+      ↓
+Notify user
+
+
+gRPC: gRPC is a framework for communication between services, including services written in different programming languages.
+
+------------------------------------------------------------------------------------------------
+
+Idempotency: Performing the same operation multiple times produce the same output everytime, as it would have if the operation was performed the first time.
+Sometimes, some operations are idempotent by their nature (own their own), like PUT calls, DELETE calls.
+But sometimes, we WANT some operations to be idempotent if they are not, so we make some changes to make it idempotent.
+For example, a POST call is not idempotent, but we might need to make it so that the same operation is not happening twice and producing different results, because they will.
+The same operation can be attempted multiple times, but its intended effect should happen only once.
+Usually during retries, when during the current attempt the operation was actually completed but the system crashed when the time to notify came.
+So the retry mechanism will try again thinking the operation is not performed (because it doesn't know).
+But if the operation is idempotent, the retry attempt won't perform the operation again, even if the attempt is being made.
+The initiated retry attempt will check for idempotency key, persistent state etc (no need to remember these terms) to verify if the operation is already completed, and act accordingly.
+
+------------------------------------------------------------------------------------------------
+
+WebSocket:
+A WebSocket is a communication channel that lets the client and server keep a connection open and send messages to each other at any time.
+HTTP: Client asks → Server responds → connection is essentially done
+WebSocket: Client and server establish a connection → both can send data whenever needed
+Example, for a chat application:
+You send a message to a friend → server immediately sends it to him
+You don't need to keep asking the server, "Any new messages?"
+Common uses:
+💬 Chat applications
+🎮 Multiplayer games
+🔔 Notification system
+
+Code example:
+
+Frontend:
+export class ChatService {
+  private socket = new WebSocket('ws://localhost:3000');
+  constructor() {
+      this.socket.onopen = () => {
+      console.log('Connected to server');
+      };
+      this.socket.onmessage = (event) => {
+      console.log('Message from server:', event.data);
+      };
+      this.socket.onclose = () => {
+      console.log('Disconnected');
+      };
+  }
+  sendMessage(message: string) {
+      this.socket.send(message);
+  }
+}
+
+For frontend application, you don't need to install any package to use WebSocket.
+WebSocket is a built-in Web API provided by the browser, like fetch, setTimeout, localStorage etc.
+
+Backend:
+npm install ws
+const WebSocket = require('ws');
+const server = new WebSocket.Server({
+  port: 3000
+});
+server.on('connection', (socket) => {
+  console.log('Angular client connected');
+  socket.on('message', (message) => {
+    console.log('Client says:', message.toString());
+    socket.send('Hello from Node.js!');
+  });
+  socket.on('close', () => {
+    console.log('Client disconnected');
+  });
+});
+
+local    → production
+http://  → https://
+ws://    → wss://
+
+------------------------------------------------------------------------------------------------
+
+Input Validation:
+Validating the payload body during the initial steps before it could cause obvious issues further. (eliminate silly/tiny mistakes)
+Reject bad input as early as possible, before expensive business logic or database work.
+Don't rely only on frontend validation entirely. UI validations can be bypassed by numerous tricks (like in CSRF).
+Client-side validation improves UX. Server-side validation provides security/integrity.
+
+Request -> Validation in Route pipeline -> Controller -> Service -> Database
+
+Validation might check:
+Required fields
+Data types
+String length
+Unique value
+Format
+Allowed values
+Numeric ranges
+Request body structure
+
+If using Express, putting the validation middleware in the route pipeline is usually cleaner:
+router.post(
+  "/users",
+  validateCreateUser, <-
+  userController.createUser
+);
+
+------------------------------------------------------------------------------------------------
+

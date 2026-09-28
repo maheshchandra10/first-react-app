@@ -1,0 +1,470 @@
+JavaScript:
+synchronous; blocking; single-threaded programming language
+
+Callback Hell:
+A situation where deeply nested callbacks make code difficult to read, maintain, error-prone and debug.
+Sequential asynchronous tasks relying on the results of previous tasks.
+
+getUser(userId, function (user) {
+  getOrders(user.id, function (orders) {
+    getFirstOrderDetails(orders[0].id, function (order) {
+      getPaymentDetails(order.paymentId, function (payment) {
+        sendConfirmationEmail(user.email, payment, function (result) {
+          console.log("Email sent!");
+        });
+      });
+    });
+  });
+});
+
+getUser()
+   └── getOrders()
+        └── getFirstOrderDetails()
+             └── getPaymentDetails()
+                  └── sendConfirmationEmail()
+                       └── ...
+
+Solution: promises .then().catch(), async await
+
+------------------------------------------------------------------------------------------------
+
+async function
+     ↓
+automatically returns a Promise
+
+normal function
+     ↓
+may return anything, including a Promise
+
+async isn't what makes a function capable of returning a Promise. 
+async is a special function modifier that guarantees its return value is Promise-based.
+
+await unwraps the fulfilled Promise.
+const data = await fetch('/data');
+Here, data is already unwrapped to be a normal variable or an object. No need to do something like- data.then((res) => console.log(res));
+
+------------------------------------------------------------------------------------------------
+
+Closure:
+A closure allows a function to access (and retain the access to) the variables from its surrounding lexical scope even after that outer function has finished.
+
+------------------------------------------------------------------------------------------------
+
+Currying:
+Currying is the technique of transforming/converting a function that takes multiple arguments into a sequence of functions, each taking one argument.
+
+Normal function:
+function add(a, b, c) {
+return a + b + c;
+}
+add(1, 2, 3); // 6
+
+Curried version:
+function add(a) {
+  return function(b) {
+    return function(c) {
+      return a + b + c;
+    };
+  };
+}
+add(1)(2)(3); // 1 + 2 + 3 = 6
+
+Each function remembers the value passed to it through Closure.
+
+Example:
+
+Normal function:
+function multiply(a, b) {
+  return a * b;
+}
+
+Curried function:
+function multiply(a) {
+  return function(b) {
+    return a * b;
+  };
+}
+
+const double = multiply(2);
+const triple = multiply(3);
+
+double(5); // 2 * 5 = 10
+triple(5); // 3 * 5 = 15
+
+The curried version of the function allows us to 'partially' apply arguments.
+const double = multiply(2); -> At this point, multiply(2) hasn't calculated anything yet.
+It returns:
+function(b) {
+  return 2 * b;
+}
+and assigns it to double ->
+const double = function(b) {
+  return 2 * b;
+}
+
+Then: double(5); -> 
+function(5) {
+  return 2 * 5;
+}
+= 10
+
+------------------------------------------------------------------------------------------------
+
+Hoisting:
+Hoisting is JavaScript's behavior of setting up declarations in their scope before execution begins.
+'var' is initialized with 'undefined', while 'let' and 'const' remain uninitialized in the Temporal Dead Zone (TDZ) until their declaration is evaluated.
+
+Variables and functions appear usable before the line where they’re declared.
+
+1. 'var' hoisting:
+   console.log(name); // undefined
+   var name = "John";
+Conceptually, it behaves somewhat like:
+   var name;
+   console.log(name); // undefined
+   name = "John";
+The declaration is hoisted, but the assignment is not.
+
+2. 'let' and 'const' hoisting:
+   console.log(age); // ReferenceError
+   let age = 25;
+You cannot access them before their declaration.
+
+The period from the beginning of the scope until the declaration is called the Temporal Dead Zone (TDZ):
+{
+   .....//TDZ for age   (beginning of the scope)
+   console.log(age); // ReferenceError
+   .....//TDZ for age
+   let age = 25;
+}
+
+3. Function declarations hoisting:
+Function declarations can normally be called before they appear.
+   greet(); // Hello!
+   function greet() {
+      console.log("Hello!");
+   }
+
+4. Function expressions hoisting:
+   i. with 'var':
+      greet(); // TypeError (NOT ReferenceError)
+      var greet = function () {
+         console.log("Hello!");
+      };
+   Here, 'greet' is initially undefined, so trying to call it fails. (greet -> undefined; greet() -> TypeError)
+   ii. with 'const':
+      greet(); // ReferenceError (same concept of let and const hoisting)
+      const greet = function () {
+         console.log("Hello!");
+      };
+
+What actually happens:
+Consider:
+console.log(a);
+var a = 10;
+console.log(b);
+let b = 20;
+console.log(c);
+const c = 30;
+
+During the setup phase of the scope, JavaScript creates bindings for all three:
+
+a → initialized as 'undefined'
+b → created, but uninitialized
+c → created, but uninitialized
+
+Then execution starts.
+'a' gets hoisted and initialized with 'undefined'.
+'b' gets hoisted, but it hasn't been initialized yet. It's in the Temporal Dead Zone (TDZ).
+'c' gets hoisted, but it hasn't been initialized yet. It's in the Temporal Dead Zone (TDZ).
+
+------------------------------------------------------------------------------------------------
+
+'this' keyword:
+'this' is a special keyword that refers to the object associated with the current function call.
+For a regular function, 'this' is determined by HOW the function is called, not WHERE the function was defined.
+
+const user = {
+  name: "Rahul",
+  greet() {
+    console.log(this.name);
+  }
+};
+user.greet(); //'this' will be the user object inside greet function.
+
+const user = {
+  name: "Rahul",
+  greet() {
+    console.log(this.name);
+  }
+};
+const greetFunc = user.greet;
+greetFunc();   //'this' will NOT be the user object inside greet function (it would be the global object or undefined)
+
+const user = {
+  name: "Rahul",
+  greet() {
+    console.log(this.name);
+  }
+};
+setTimeout(user.greet, 1000); //'this' will NOT be the user object inside greet function when the setTimeout callback runs
+setTimeout(user.greet(), 1000); //'this' will be the user object inside greet function and greet() will be invoked immediately
+
+
+
+
+------------------------------------------------------------------------------------------------
+
+Regular function vs Arrow function:
+
+The biggest difference is how 'this' works in both the types of function.
+
+Regular function:
+A regular function gets its own 'this' depending on how the function is called.
+
+const user = {
+  name: "Mahesh",
+  greet: function () {
+    console.log(this.name);
+  }
+};
+user.greet(); // Mahesh
+
+Arrow function:
+An arrow function doesn't create its own 'this'.
+It takes 'this' from the surrounding lexical scope.
+
+const user = {
+  name: "Mahesh",
+  greet: () => {
+    console.log(this.name);
+  }
+};
+user.greet(); // usually undefined
+
+Advantage of Arrow functions over Regular functions:
+1. Arrow functions not creating their own 'this' is the biggest advantage of Arrow functions over Regular functions.
+      In callbacks where an arrow function is used, you can use 'this' to refer the object from the surrounding lexical scope.
+      Imagine all the array functions (array.map()/filter()/find()/findIndex()) in Angular. They all use arrow functions for their operation.
+      And you can refer the class properties using this.<variable-name> inside these arrow functions.
+2. No own 'arguments':
+   function foo(arg1, arg2) {
+      console.log(arguments); //['hello', 'world']
+   }
+   foo("hello", "world");  vs
+   const foo = (arg1, arg2) => {
+      console.log(arguments); // ❌
+   };
+   foo("hello", "world");
+   The arrow function doesn't create its own 'arguments'.
+3. Shorter syntax
+
+Real use-case advantage of an Arrow function over a Regular function:
+
+In Angular, consider a regular function inside find():
+export class UserComponent {
+  users = [
+    { id: 1, name: 'Amit' },
+    { id: 2, name: 'Rahul' }
+  ];
+
+  selectedUserId = 2;
+
+  findUser() {
+    const user = this.users.find(function(user) {  -> a regular function
+      return user.id === this.selectedUserId;      -> here this.selectedUserId is not referring to the component's selectedUserId
+    });
+
+    console.log(user);  //unreachable
+  }
+}
+Output -> TypeError: Cannot read properties of undefined (reading 'selectedUserId')
+Because 'this' here is the regular function's own 'this', which is undefined.
+
+Now consider an arror function inside find():
+export class UserComponent {
+  users = [
+    { id: 1, name: 'Amit' },
+    { id: 2, name: 'Rahul' }
+  ];
+
+  selectedUserId = 2;
+
+  findUser() {
+    const user = this.users.find((user) => {  -> an arrow function
+      return user.id === this.selectedUserId;      -> here this.selectedUserId is referring to the component's selectedUserId
+    });
+
+    console.log(user);  // {id: 2, name: 'Rahul'}
+  }
+}
+Output -> {id: 2, name: 'Rahul'}, because
+The arrow function doesn't create its own 'this'. It takes it from the surrounding lexical scope.
+This is a real use-case advantage of an Arrow function over a Regular function.
+
+'Surrounding Lexical Scope': Keep looking beyond and beyond until the required variable is found, or the topmost parent function is reached.
+
+------------------------------------------------------------------------------------------------
+
+call(), apply(), bind():
+call(), apply() and bind() let you control what 'this' refers to when a regular function runs.
+They let you explicitly control the 'this' value for regular functions (NOT for arrow functions).
+
+Syntax: functionName.call/apply/bind(thisValue, <args...>);
+
+call():
+call() immediately invokes the function.
+
+Syntax:
+function.call(thisValue, arg1, arg2, arg3, ...);
+
+const person = {
+  name: "Rahul"
+};
+function greet(city, country) {
+  console.log(`Hi, I'm ${this.name} from ${city}, ${country}`);
+}
+greet.call(person, "Lucknow", "India");
+-> Hi, I'm Rahul from Lucknow, India
+
+greet.call(person, "Lucknow", "India"); -> Run greet function right now, and while running it, make 'this' === person
+
+apply():
+apply() does essentially the same thing as call():
+-immediately invokes the function
+-lets you specify 'this'
+The difference is arguments are provided as an array.
+
+Syntax:
+function.call(thisValue, [arg1, arg2, arg3, ...]);
+
+greet.apply(person, ["Lucknow", "India"]);
+
+Note:
+The array ["Lucknow", "India"] is not passed as one argument to greet.
+apply() takes the array and spreads its elements into the function's parameters as individual arguments.
+And therefore, the order of the values inside the array will also matter.
+
+function greet(city, country) {
+  console.log(city); //Lucknow
+  console.log(country); //India
+}
+greet.apply(person, ["Lucknow", "India"]); -> Lucknow India
+
+bind():
+bind() does NOT invoke the function immediately.
+It creates and returns a new function with 'this' permanently associated with the value you provide.
+
+const person = {
+  name: "Rahul"
+};
+function greet(city, country) {
+  console.log(`Hi, I'm ${this.name} from ${city}, ${country}`);
+}
+const boundGreet = greet.bind(person); //greet() is not invoked here
+boundGreet("Lucknow", "India");
+-> Hi, I'm Rahul from Lucknow, India
+
+Note:
+call(), apply(), and bind() are particularly useful with regular functions.
+They do not let you change 'this' inside an arrow function:
+
+const greet = () => {
+  console.log(this); //not person object
+};
+greet.call(person);
+
+The 'this' of an arrow function is lexically inherited from its surrounding scope.
+call(), apply(), and bind() cannot override it.
+
+------------------------------------------------------------------------------------------------
+
+Higher-order functions:
+A higher-order function is a function that:
+takes another function as an argument, or
+returns a function.
+array.map(...), array.filter(...), array.find(...)
+These all take another function as an argument- numbers.map(x => x * 2);
+
+------------------------------------------------------------------------------------------------
+
+Shallow Copy vs Deep Copy vs no copy:
+Shallow copy:
+A shallow copy creates a new outer object for both the variables, but nested objects which are inside are still shared.
+
+const original = {
+  name: "Mahesh",
+  address: {
+    city: "Lucknow"
+  }
+};
+
+const copy = { ...original };    -> Shallow Copy  (Object.assign() also createa a shallow copy)
+
+A shallow copy creates a new outer object for both the variables, means the reference for 'original' and 'copy' are different.
+
+copy.name = "Rahul";  -> doesn't affect original.name, original.name is still 'Mahesh'
+But, copy.address.city = "Delhi"; also affects original.address.city. Now original.address.city will also be 'Delhi',
+because both objects 'original' and 'copy' point to the same nested 'address' object.
+
+But why?
+Because JavaScript objects are reference values.
+In: const copy = { ...original };
+For a primitive (name: "Mahesh"), the value itself is copied.
+For an object (address: { city: "Lucknow" }), the value is a reference to that object. So both point to the same nested object.
+
+Common ways of making shallow copies-
+const copy = { ...original };
+const copy = Object.assign({}, original);
+const copy = [...original];
+const copy = original.slice();
+
+You can remember Shallow Copy as- copy didn't happen too deeply, only primitives got copied while the nested objects are still the same.
+
+Deep Copy:
+A deep copy creates independent copies of the nested objects as well.
+structuredClone() is a modern JavaScript function for Deep Copy.
+const copy = structuredClone(original);
+
+const original = {
+  name: "Mahesh",
+  address: {
+    city: "Lucknow"
+  }
+};
+const copy = structuredClone(original);    -> Deep Copy
+copy.address.city = "Delhi";
+console.log(copy.address.city);     // Delhi
+console.log(original.address.city); // Lucknow (here the original nested object is not affected)
+
+You can remember Deep Copy as- copy happened deeply and completely, everything got their own separate copy.
+
+No copy:
+When both variables 'original' and 'copy' reference the same object.
+const copy = original;  -> here both point to the same reference of the object
+original ──────┐
+               ▼
+             Object
+               ▲
+               │
+copy ──────────┘
+
+So changing even the primitive value of one object will affect the other object.
+copy.name = "Rahul";
+console.log(original.name) -> 'Rahul'
+
+You can remember no copy as- no variable actually got their own copy of anything.
+
+Now suppose you do:
+original = null;
+This means:
+"Change the value stored in the variable original to null."
+It does not mean:
+"Change the object that original previously pointed to."
+So now:
+original ───────→ null
+copy ─────────→ Object
+The object itself hasn't changed. You've simply changed one variable's reference.
+copy still contains the old reference.
+
+------------------------------------------------------------------------------------------------

@@ -1,0 +1,109 @@
+Angular 20/21 new features:
+
+Zoneless Change Detection: Angular can run without zone.js, reducing unnecessary change-detection work and thus faster rendering.
+Signals APIs became stable.
+Signal Forms: Angular 21 introduced the signal-based forms API.
+Incremental Hydration: Improves startup for Server Side Rendered (SSR) applications.
+Angular 20 also contains numerous framework-level performance optimizations.
+
+"Did Angular 20 improve performance compared with Angular 17?"
+-"Yes, Angular 20 has performance improvements, particularly in rendering, change detection, and hydration.
+However, the magnitude of improvement depends on the application,
+and some of the biggest benefits require adopting newer approaches like Signals and zoneless change detection."
+
+------------------------------------------------------------------------------------------------
+
+Dependency Injection (DI):
+A design pattern where a class receives the dependencies it needs from an external source (Angular's injector) instead of creating them itself.
+
+@Injectable({
+  providedIn: 'root'
+})
+export class UserService {}
+
+providedIn: 'root' registers the service with the application's root injector, making it available throughout the application.
+It provides a single shared instance of the service to all the components injecting it.
+
+------------------------------------------------------------------------------------------------
+
+Constructor vs ngOnInit:
+The constructor runs when the component's class instance is created and is primarily used for Dependency Injection.
+ngOnInit() is an Angular lifecycle hook called after Angular initializes the component's input properties (@Input), making it suitable for initialization logic.
+
+------------------------------------------------------------------------------------------------
+
+NgRx:
+Component dispatches an Action (says what needs to happen) → Reducer (decides how state changes) → Store (holds the state) → Selector (reads the state)
+And:
+Effect handles side effects such as API calls. 
+In this case, an extra step will be added in the above flow, where the Effect comes inbetween component action and the Reducer.
+
+The components that are interested in the state are using a Selector.
+
+Incase of an API call (which is a side-effect):
+Component
+   ↓ dispatches
+Action
+   ↓
+Effect → calls API
+   ↓ after successful API call
+Success Action
+   ↓
+Reducer
+   ↓ updates the state
+Store.
+   ↓
+Selector
+   ↓ helps read the state
+Component
+
+Effects handle side-effects, and not Reducer, because Reducer is supposed to be pure (same output for the same input)
+Reducer → pure tasks
+Effect  → external/async tasks
+
+------------------------------------------------------------------------------------------------
+
+RxJS operators (modify the value emitted by an Observable):
+debounce(300)
+observable.pipe(operator1, operator2, ...)
+switchMap: Previous subscription is unsubscribed/cancelled if it is still pending when a new value is emitted (disadvantage: the previous subscription might get completed before it is unsubscribed)
+mergeMap: Keep running all the subscriptions, completion order doesn't need to match the input order; All will be executed with no particular order
+concatMap: subscriptions are queued and processed one after another, next one doesn't start until the previous one finishes; All will be executed and in order
+exhaustMap: While the current subscription is running, DISCARD new subscriptions and dont consider them at all till the previous one is running
+tap(): perform a side effect without changing the value (logging, setting loading indicators, debugging)
+map(): transform the values of the observable
+filter(): filter out values from the observable
+distinctUntilChanged(): ignore consecutive duplicates ('cat cat cat car car cat cat cars' will become 'cat car cat cars')
+forkJoin({..., ...}): Run multiple Observables and emit only when all have completed.
+finalize(): run cleanup when the Observable terminates/unsubscribes
+
+An example use of switchMap():
+searchSubject$ = new Subject<string>();
+ngOnInit() {
+   this.searchSubject$.pipe(
+      debounce(300),
+      distinctUntilChanged(),
+      switchMap((searchTerm) =>
+         this.http.get(`/api/users?search=${searchTerm}`)
+      )
+   ).subscribe((users) => {
+      this.users = users;
+   });
+}
+
+onSearchChange(event: Event) { //called on (change)="onSearchChange($event)" from <input>
+  const searchTerm = event.target.value;
+  this.searchSubject$.next(searchTerm);
+}
+
+more about pipe():
+observable.pipe(operator1, operator2,operator3,...):
+Take the Observable → pass its emitted values to operator1 → whatever comes out goes into operator2 → then operator3 → ...
+Operators return Observables, even the last one in the chain, not a normal variable. So in the end, we still need to subscribe the final result.
+An operator can change the data type of the observable. For example-
+const result$ = users$.pipe(map(users => users.length)) -> users$ is of Observable<User[]>, result$ is of Observable<number>
+search$.pipe(switchMap(query => this.http.get(`/api/search?q=${query}`))) -> here, 'query' argument is the value emitted by search$
+Thus, any argument inside an operator is the value emitted by the observable for which these operators are being used.
+
+------------------------------------------------------------------------------------------------
+

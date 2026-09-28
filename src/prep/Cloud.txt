@@ -1,0 +1,277 @@
+AWS
+
+| AWS service       | Simple meaning                     | Think of it as                           | Popular alternatives                                                         |
+| ----------------- | ---------------------------------- | ---------------------------------------- | ---------------------------------------------------------------------------- |
+|     EC2           | Virtual server                     | A computer in the cloud                  | Azure Virtual Machines**, Google Compute Engine* DigitalOcean Droplets       |
+|     S3            | Object/file storage                | A huge file bucket                       | Azure Blob Storage**, Google Cloud Storage, Cloudflare R2                    |
+|     RDS           | Managed relational database        | Managed PostgreSQL/MySQL/SQL Server etc. | Azure SQL Database**, Google Cloud SQL, Oracle Cloud databases               |
+|     IAM           | Identity & access control          | Who can do what                          | Microsoft Entra ID (Azure AD), Google Cloud IAM, Okta                        |
+|     Lambda        | Run code without managing servers  | Function-as-a-Service                    | Azure Functions**, Google Cloud Functions, Cloudflare Workers                |
+|     CloudWatch    | Monitoring, logs, metrics, alarms  | Production monitoring                    | Azure Monitor**, Google Cloud Monitoring, Datadog, New Relic                 |
+|     Load Balancer | Distributes traffic across servers | Traffic cop                              | Azure Load Balancer, Google Cloud Load Balancing, NGINX, HAProxy             |
+|     VPC           | Isolated/private cloud network     | Your application's network               | Azure Virtual Network (VNet), Google Cloud VPC                               |
+|     ECR           | Container Registry                 | Where Images (build artifacts) are stored| Azure Container Registry, Docker Hub, Google Artifact Registry
+|     ECS           | Container Service                  | Managing/deploying registries            | Kubernetes, Azure Container Apps, Google Cloud Run
+
+EC2:
+Elastic Compute Cloud
+AWS gives you a 'virtual server', and you run your application on it through EC2.
+You can run multiple EC2 instances to distribute traffic:
+             Load Balancer
+              /    |    \
+             /     |     \
+          EC2     EC2     EC2
+           |       |       |
+        Node.js Node.js Node.js
+
+You still have to manage the virtual server -> Choose the server size, Keep the server running, Deploy your Node.js application, Handle scaling etc.
+
+S3:
+Object/file storage system for raw & huge data.
+AWS's object storage service, designed for storing things like:
+PDFs, Images, Videos, Documents, Backups, miscellaneous Large files
+A highly scalable place to store files/blobs, and not in your application server or database.
+
+It also helps in co-ordinating a Distributed System:
+If a user uploads 'document.pdf' to EC2 #1, that file is sitting on that particular server.
+Later, another request goes to EC2 #2: The file isn't necessarily there.
+And if EC2 #1 is terminated, that local file could disappear.
+So a better approach:
+             Load Balancer
+             /          \
+          EC2 #1       EC2 #2
+             \          /
+              \        /
+                  S3
+                  |
+            'document.pdf'
+
+A common architecture:
+User
+ ↓ API request
+Load Balancer
+ ↓
+EC2 #n
+ ↓
+Node.js API
+ ↓
+Create processing job
+ ↓
+Queue
+ ↓
+Worker
+ ↓ (accesses files from S3)
+S3 ←──── files
+ ↓ (after processing the file)
+Database ← metadata/status
+
+You generally wouldn't put a 500 MB video directly into a normal relational database just because you can.
+Instead:
+S3 → actual file/blob
+Database → metadata about the file, its status
+
+So the database might contain:
+   id: 123
+   file_name: 'report.pdf'
+   s3_key: "uploads/2026/09/report.pdf"
+   status: "PROCESSING".
+While S3 contains the actual 'report.pdf'.
+
+
+RDS:
+RDS = Relational Database Service
+It's AWS's managed service for relational databases.
+You can run:
+PostgreSQL, MySQL, MariaDB, Microsoft SQL Server, Oracle in it,
+instead of manually managing a database server yourself.
+
+RDS can handle things like infrastructure, backups, patching, monitoring, and high-availability options of the database, depending on the configuration.
+
+Without a managed service:
+EC2 (virtual server)
+ ↓
+Install PostgreSQL in EC2
+ ↓
+Configure it
+ ↓
+Maintain it
+ ↓
+Backups
+ ↓
+Patching
+ ↓
+Monitoring
+
+With RDS:
+Your application
+      ↓
+     RDS (RDS will do all the above steps, you just have to use PostgreSQL without worrying about managing it)
+      ↓
+  PostgreSQL
+
+You still need to implement your schema, indexes, queries, transactions, migrations, connection pooling, etc.
+RDS is managing the underlying database infrastructure; it isn't managing your application's database design/query for you.
+
+The distinction is:
+Self-managed Database: Putting PostgreSQL directly on EC2 yourself (you can, because you just have to put it on a virtual server ie EC2)
+vs
+Managed Database Service: Utilizing AWS's RDS service and using PostgreSQL behind it.
+
+
+IAM:
+Identity and Access Management
+IAM controls who or what is allowed to access AWS resources (like entire S3, a file in S3 etc) and what actions they can perform.
+It performs both Authentication and Authorization of an EC2 instance, Node.js application, user (AWS user, not the app's end-user) etc.
+
+IAM User: An IAM User represents a user or an application needing long-term AWS credentials.
+It is now avoided to provide long-term AWS credentials to applications/users when you can use an IAM Role instead, because:
+   Long-lived credentials (access keys can remain valid for a long time)
+   Higher security risk (if credentials leak, they can be misused)
+   Harder credential management (rotation, storage, and revocation become your responsibility)
+
+IAM Group: A group is simply a collection of IAM Users.
+For example,
+Developers -> Mahesh, Rahul, Amit 
+You can attach a policy to the group 'Developers':
+Developers -> S3 read access
+Every user in that group gets those permissions. This avoids having to attach the same permissions individually to every user.
+Note: A group contains IAM Users, not IAM Roles.
+
+IAM Role: A role is an identity that can be temporarily taken by a trusted entity (EC2 instance/Node.js application/user).
+Consider it as a temporary role provided to an entity for accessing or doing something for a while based on IAM Policies.
+Suppose your Node.js application is running on EC2 and needs to read PDFs from S3. You do:
+EC2 -> IAM Role -> temporary credentials -> S3
+
+| IAM User (avoided)                         | IAM Role (preferred)                    |
+| -------------------------------------------| --------------------------------------- |
+| Represents a long-term identity            | Represents a temporary identity         |
+| Often associated with a user               | Often used by AWS services/applications |
+| Can have long-term credentials             | Uses temporary credentials              |
+| Example: developer, team lead              | Example: EC2 application                |
+| Credentials can be persistent              | Credentials are temporary               |
+
+IAM Policies: Policies define what actions are allowed or denied.
+Identity-based policy: Attach the policy to a User, Group or a Role
+Resource-based policy: Attach the policy directly to the resource
+
+Least Privilege: A fundamental IAM principle.
+Give an identity only the permissions it actually needs.
+
+"Your Node.js application is running on EC2 and needs to upload files to S3. How would you authenticate it?"
+"I would create an IAM Role for the EC2 instance and attach a least-privilege policy allowing only the required S3 operations on the bucket. 
+ I would then associate this role with the EC2 instance."
+
+Note:
+JWT- application-level authentication/authorization of an end-user (client)
+IAM- AWS-level authentication/authorization of a user from the team (developer, tester, product owner etc), or an entity
+
+IAM
+│
+├── User             → long-term identity
+├── Group            → collection of Users
+├── Role             → temporary identity
+├── Policy           → permissions
+└── Least Privilege  → only necessary permissions
+
+
+Lambda:
+Lambda lets you run backend code without managing the server yourself (in EC2, you still have to manage the server).
+You give AWS a function/code, and AWS takes care of starting the compute, running it, scaling it, and shutting it down when it's no longer needed.
+
+You mainly provide the function:
+export const handler = async (event) => {
+    return {
+        statusCode: 200,
+        body: JSON.stringify({ message: "Hello" })
+    };
+};
+AWS Lambda handles the underlying server(s).
+
+Lambda is a piece of code that AWS runs when something triggers it.
+Some triggers:
+HTTP request: HTTP request -> API Gateway -> Lambda -> Your code executes -> Response
+In certain AWS entity operation: S3 file uploaded -> Lambda -> Process the file
+Many more..
+
+Lambda is called "Serverless":
+Serverless does NOT mean there are no servers. There obviously are servers somewhere.
+It means you don't have to manage those servers yourself.
+
+Lambda automatically scales:
+Imagine your Lambda normally receives- 10 requests/second
+AWS can run Lambda executions as needed.
+If traffic suddenly becomes- 10,000 requests/second,
+AWS can create many concurrent Lambda executions.
+
+You pay based on usage:
+With an EC2 instance, instance running → you're paying for it even if it is sitting idle.
+With Lambda, pricing is primarily based on things such as: number of invocations, execution duration, allocated memory
+
+                    | EC2                       | Lambda                             |
+| ----------------- | ------------------------- | ---------------------------------- |
+| Server management | You manage it             | AWS manages it                     |
+| Scaling           | You configure/manage it   | AWS handles scaling                |
+| Execution         | Long-running server       | Function invocations               |
+| Billing           | Instance usage            | Invocations + execution resources  |
+| State             | Can keep local state      | Should be treated as stateless     |
+| Startup           | Server already running    | Can have cold starts               |
+| Best suited for   | Long-running applications | Event-driven/short-lived workloads |
+
+
+CloudWatch:
+AWS monitoring and observability service
+"What's happening with my application and AWS resources in production?"
+
+It can collect and show things like:
+Metrics — CPU utilization, request counts, latency, etc.
+Logs — application/system logs
+Alarms — notify or trigger action when a threshold is crossed
+Dashboards — visualize important metrics
+
+Winston/Morgan: Generate/manage logs inside your Node.js application. So it is application level.
+CloudWatch: AWS-side monitoring/observability service where you can collect and monitor logs and metrics from your AWS environment. So it is AWS level.
+
+
+AWS Load Balancer:
+The AWS Load Balancer receives incoming requests and distributes them among server/EC2 instances.
+It can also perform health checks.
+"Why put a load balancer in front of multiple EC2 instances?"
+Traffic distribution → Health checks → Availability → Scaling
+
+An example of complete architecture: 
+
+                         Internet
+                            ↓ API request
+                      Load Balancer
+                            ↓
+                    EC2 / Node.js API --------> in case of light/moderate task ---
+                       /          \ heavy task                                   |
+                      ↓            ↓                                             |
+                     S3          Queue                                           |
+                (actual PDF)       ↓                                             |
+                              Worker or Lambda                                   |
+                                   ↓                                             |
+                                  RDS   <----------------------------------------|
+                           (metadata + status)
+
+Add retries, idempotency, use CloudWatch (or manually add health checks, logging, metrics, and monitoring) for production reliability.
+
+
+VPC:
+Virtual Private Cloud = Your own private network inside AWS
+It's a network/environment in which your AWS resources live and communicate privately.
+
+ECR:
+Elastic Container Registry = AWS service for storing Docker Images
+
+ECS:
+Elastic Container Service = AWS service for deploying, running and managing Docker Images
+
+
+Note: You can still use AWS services without involving Docker and get the same outcome.
+      Docker is just a tool for packaging your application with its environment, creating a Docker Image, so that
+      the deployment is properly done on a server and failures are minimized.
+      You can still use AWS services and directly deploy your application on a server, but chances of deployment failures are increased. 
+
+------------------------------------------------------------------------------------------------
+

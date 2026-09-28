@@ -1,0 +1,324 @@
+Debugging failures/issues at every step of the request-response flow:
+
+For a typical web application, the flow:
+
+User
+  ↓
+Browser / React / Angular
+  ↓ API request
+DNS
+  ↓
+Network / TLS
+  ↓
+Load Balancer / Reverse Proxy
+  ↓
+Server / EC2 / Node.js
+  ↓
+Middleware
+  ↓
+Controller
+  ↓
+Service / Business Logic
+  ↓
+Cache
+  ↓
+Database / External API / Plugins
+  ↓
+Response processing & construction
+  ↓
+Node.js response
+  ↓
+Load Balancer / Network
+  ↓ API response
+Browser
+  ↓
+UI rendering
+  ↓
+User
+
+1. User → Browser
+   Incorrect or huge request payload formed
+   Expensive client-side computation before request
+   Too many requests triggered by one action
+   (Check the browser Network tab or console)
+
+2. Network / TLS (Browser -> Load Balancer / Reverse Proxy)
+   Slow Network from user's side
+   Connection timeout
+   Firewall/Proxy
+   Server unreachable
+
+3. Load Balancer / Reverse Proxy -> Server / EC2 / Node.js application
+   Proxy/load-balancer delay or any issue
+   Load balancer overloaded
+   Health checks incorrectly configured -> request hitting unavailable server
+   Uneven traffic distribution -> request hitting already overloaded server 
+   All server instances overloaded -> too many requests for the current distributed system
+
+4. In Express Middleware
+   A slow middleware
+   A middleware doesn't call next()
+   Connection closed because of Rate Limiter (not an issue though)
+   Unnecessary middlewares in the pipeline
+   Incorrect Input Validation
+
+5. In Service / Business Logic
+   Inefficient algorithms
+   Heavy synchronous processing (large loops, readFileSync etc)   
+   Repeated calculations
+   N+1 calls
+   Unnecessary external API calls
+   Excessive/incorrect retries
+   (N+1 problem:
+      Get 100 users
+            ↓
+      for each user:
+         call another API (like their orders)
+   That's potentially: 1 + 100 calls) -> use Batching to tackle it
+
+6. Service / Business Logic -> Cache
+   Expired/stale data
+   Cache unavailable/crashed
+
+7. Cache -> Database
+   All connections busy in Connection Pool
+   Connection Pool too small -> requests wait; Connection Pool too large -> DB overloaded
+   Index issue -> Missing index, Wrong index, too many indexes
+   Fetching unnecessary data
+   Unnecessary JOINs/Filtering/Sorting
+   N+1 queries
+   Poor query execution plan/query design
+
+8. In External API / Service / Plugin
+   Third-party service slow/crashed
+   Excessive retries
+
+9. While Response Processing & Construction
+   Huge response body
+   Unnecessary fields
+   Heavy synchronous processing
+   Large/inefficient object transformation
+
+10. Node.js -> Network -> Browser
+   Large response payload
+   Slow user network
+   Proxy/load-balancer delay or any issue
+
+
+
+| Stage                     | Ask yourself                                             |  Typical solutions  
+| ------------------------- | -------------------------------------------------------- |  -------------------------------------------------------------------------------------------------------------------------------------------
+| Browser                   |   Did the request actually start?                        |  Check DevTools Console/Network; validate payload
+| Network                   |   Did it reach the server quickly?                       |  Fix network/proxy/firewall configuration; reduce payload size; user should have a good network bandwidth
+| Load balancer             |   Did it reach a healthy instance?                       |  Configure proper health checks; tune LB configuration; scale instances horizontally; investigate uneven distribution
+| Node.js                   |   Is CPU/memory/event-loop healthy?                      |  CPU profiling; offload CPU work to workers; check memory leaks; scale instances horizontally 
+| Middleware                |   Is something blocking/hanging here?                    |  Ensure `next()`/response; keep middlewares lightweight;
+| Service                   |   Are we doing unnecessary work?                         |  Optimize algorithms; eliminate duplicate work; use retries properly; use queue + workers for heavy processing
+| Cache                     |   Hit or miss? Is cache helping or causing a stampede?   |  Tune TTL; invalidate appropriately
+| Connection pool           |   Is the request waiting for a DB connection?            |  Release connections correctly; tune pool size based on DB capacity; monitor pool utilization; don't blindly increase pool
+| Database                  |   Is the query/plan/data/lock the bottleneck?            |  Check execution plan; add/adjust indexes; optimize query/JOINs/filters/sort; don't fetch all columns using *, only necessary; paginate
+| External API              |   Is a dependency slow/failing?                          |  Cache where appropriate; Set time outs; use retries properly
+| Response Construction     |   Are we doing expensive serialization/transformation?   |  Return only required data; paginate; reduce payload size
+| Network                   |   Is the response large/slow to transfer?                |  Reduce payload size; Check LB; stream large responses; user should have a good network bandwidth
+| Browser                   |   Is rendering/client-side processing slow?              |  Memoization; pagination; optimize rendering
+
+
+
+Reproduce (which action causing the issue, what inputs, everytime/intermediate)
+   ↓
+Measure the extent of the problem (how big is the issue & what else if affected)
+   ↓
+Trace where the failure occurs (logs, network tab error messages, correlation ID, add breakpoints)
+   ↓
+Narrow down and isolate the problematic component
+   ↓
+Find the actual cause in the isolated component (as per the above table wrt to the problematic component found above)
+   ↓
+Test and verify the cause (if it is really the cause)
+   ↓
+Fix with smallest appropriate change
+   ↓
+Test & measure again to verify if the issue is really fixed
+   ↓
+Add test/monitoring to prevent recurrence
+
+------------------------------------------------------------------------------------------------
+
+Production System mental model:
+
+Requirements
+   ↓
+
+API
+→ accepts requests
+
+Load balancer (traffic officer)
+→ on its own handles & distributes traffic to multiple instances of the same API running on multiple servers (usually n servers will have n instances of one API)
+
+Queue
+→ decouples work from the main flow
+
+Worker(s)
+→ process jobs from the queue
+
+Database
+→ persistent metadata/state (table structure and all) to retrieve info of a work/file faster
+
+Object storage (S3 Bucket)
+→ actual files (blob), could be images, videos, pdfs, anything large
+
+Cache
+→ optional performance layer (could also be used for storing things like idempotency keys or anything shared if a load balancer is used)
+
+Logs + metrics + traces
+→ tell us what's happening (any issue/bottleneck, status of a work)
+
+Health checks (done by the Load Balancer for each server internally every few seconds)
+→ tell whether an instance of the API in a server is usable (are currently live/dead, are ready to take requests/overloaded etc)
+
+Graceful shutdown (on receiving SIGTERM)
+→ lets the API instances stop safely (no more new requests, finish existing requests, close db, close cache system like Redis)
+
+That's the core of production-oriented system design.
+
+"How would you make your file-processing system reliable and scalable?"
+"I'd decouple long-running processing using a queue and workers. (put the heavy work in a queue so that a worker could pick it up and process it)
+I'd scale API instances horizontally behind a load balancer and scale workers (if required) based on workload. (load balancer will help other instances of an API to participate handling the request instead of just one) 
+I'd keep file blobs in object storage and metadata/status in a database. (if the status of a file needs to be checked, we can query the db instead of searching for it in the object storage)
+I'd add retries and idempotency for failure handling;
+and use structured logging, metrics, tracing, health checks, and graceful shutdown for production reliability."
+
+------------------------------------------------------------------------------------------------
+
+Caching:
+When to use Caching?
+If the data is:
+   frequently requested (same data requested a lot)
+   relatively expensive to retrieve (retrieving large data)
+   relatively stable (data doesn't change frequently)
+
+A cache db usually sits infront of the database to first check if the data already exists in the cache.
+
+   Request
+      ↓
+   Cache
+   /     \
+HIT?      MISS?
+ ↓          ↓
+Return   Database
+            ↓
+         Store in cache
+            ↓
+         Return
+
+Cache disadvantage:
+Stale data: The data stored in cache should be in sync with the database. (if a data is deleted/updated from the database but still present/older copy in cache, it will create inconsistency)
+How to tackle it: 
+1. Time to Live (TTL): Delete the copy of data from the cache after certain time (in seconds or minutes). Have random TTLs to different different data.
+2. Active Invalidation: Delete the old copy of data the moment it changes (while updating the data in database, update it in the cache as well) 
+
+Cache Stampede: When a cache data expires, and thousands of requests miss the cache, it will cause Cache Stampede to the database, where thousands of requests hit the database at once.
+
+------------------------------------------------------------------------------------------------
+
+Content Delivery Network (CDN):
+A CDN is a network of servers distributed across different geographical locations,
+that helps deliver static and sometimes dynamic content to users faster.
+
+Without a CDN:
+User in Lucknow ───────────────→ Server in Florida
+User in London ────────────────→ Server in Florida
+User in New York ──────────────→ Server in Florida
+Every user has to reach your main server(s).
+
+With a CDN:
+User in Lucknow ───────────────→ CDN India
+User in London ────────────────→ CDN Europe
+User in New York ──────────────→ CDN USA
+The CDN keeps cached copies of your static files at server(s) closer to users.
+
+Main benefits:
+1. Lower latency: The content is served from a geographically closer server.
+2. Reduced load on your load balancer/server: If 100,000 users request the same data, your load balancer/server doesn't necessarily have to serve it 100,000 times.
+3. Better scalability: CDNs are designed to handle huge numbers of requests.
+4. Caching:
+   First request:
+   CDN → Origin Server
+         ↓
+      Cache it
+   Later requests:
+   CDN → Cached file
+The origin server doesn't need to be contacted every time.
+
+                  INTERNET
+                     │
+                     ▼
+               ┌──────────┐
+               │   CDN    │
+               └──────────┘
+                     │
+                     │ cache miss / dynamic request
+                     ▼
+               ┌──────────┐
+               │   Load   │
+               │ Balancer │
+               └──────────┘
+                /    |    \
+               ▼     ▼     ▼
+              ...   ...   ...
+
+Client → CDN → Load Balancer → Application Servers → Database
+
+------------------------------------------------------------------------------------------------
+
+Keep your servers Stateless.
+Don't remember anything from a previous request, don't store anything in the memory of a server.
+For storing something, use a Shared Store (usually a cache). This way all the servers can access that stored data from the Shared Store, 
+eliminating the issue where one server doesn't know anything about an information which is stored only in another server.
+For example: login session tokens, rate-limiter count etc.
+
+Any server that sits infront of the API requests made by the user has a general name, called Reverse Proxy.
+A Load Balancer is the most common type of Reverse Proxy, so common that these terms are used interchangeably.
+Usually, the IP Address found from the DNS lookup is of a Reverse Proxy (or from now on we say Load Balancer), and not of any server that are managed by the Load Balancer.
+
+How entering a URL opens a webpage:
+user enters a URL ->
+DNS lookup to get the IP address of the load balancer ->
+load balancer picks a healthy server ->
+the server does the operation as per the code, reads/fetches the data from the db ->
+the response travels back the same path.
+
+------------------------------------------------------------------------------------------------
+
+What to ask and what not to ask initially during the start of System Design interview:
+
+-Firstly, rule of thumb- Never ask about which technology, language, architecture to use, and which components to use.
+-Ask yourself: "Will the answer to my question change the design?"
+-Some good questions to ask:
+   1. What is this system supposed to do? This is a functional requirement question.
+   2. How many active users are there at one point of time and how fast they are growing?
+         < 10k	                     1 server + 1 DB can work
+         10K-100K                	Still potentially simple, maybe add 1 load balancer & a cache depending on traffic
+         100K-1M	                  Start thinking distributed — multiple servers, a load balancer, cache, DB scaling (1 primary + around 2-3 secondary) 
+         1M-10M	                  Definitely design for horizontal scaling
+         10M+	                     Distributed architecture is very likely; consider sharding, queues & workers, replicas, etc.
+      If asked to choose myself, say ~10M so that you can demonstrate your wide knowledge of scaling, caching etc.
+      But remember, this is for one point of time. If it says in a day, then 1M is actually a low number of users.
+      And if it says for a year, then it is too huge a number, in billions.
+   3. Do users read more, or write more? Cache + DB scaling (1 primary + around 2-3 secondary)  will be introduced if read more.
+         If asked to choose, say read more.
+   4. What should be the latency of important actions? 
+   5. What data can we never afford to lose?
+ 
+-------------------------------------------------------------------------------------------------
+
+If the answer to a question is:
+Avoid redundancy; 
+The following points automatically come with it-
+Avoid duplication (already mentioned above)
+Consistency — the same rules are applied across features
+Maintainability — changes happen in one place
+Scalability — Easy to scale
+Separation of concerns — focus on business logic where required
+No single point of failure — if something else fails, this won't fail as the result, or if this fails, other things will not as the result
+

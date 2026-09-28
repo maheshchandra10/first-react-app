@@ -1,0 +1,149 @@
+Docker:
+Docker is a technology/tool/software used to build, run and manage Containers.
+It addresses the environment inconsistency problem.
+
+Docker Image:
+You package your application together with the environment (packages, dependencies, configs etc) it needs, into a Docker Image.
+Docker Image = Application codebase + Node runtime environment/version + dependencies + configuration
+Another way of looking at Docker Image: If Docker is part of the pipeline, then the Build Artifact generated after the build succeeds is actually the Docker Image itself.
+This Image can then run as a Container on another machine.
+Think of an Image as a package.
+
+Container:
+A container is a running instance of a Docker Image.
+A Docker Container packages the application with its environment into a consistent, isolated runtime environment,
+reducing differences between dev, sqa & prod environments.
+Tip: Whenever you say an 'application' running on a server, you can usually interchangeably also say an 'application container' running on a server,
+because an application will not run without its proper node runtime environment, dependencies, packages etc on a server.
+   Though an 'application' can run directly as well on a server without container being involved.
+   But just to have Containers in your vocabulary, you can say the above for now.
+
+A common infrastrucure:
+
+                         Load Balancer
+                              |
+              ┌───────────────┼───────────────┐
+              ↓               ↓               ↓
+           Server 1 (EC2)  Server 2 (EC2) Server 3 (EC2)
+              |               |               |
+         ┌────┼────┐     ┌────┼────┐     ┌────┼────┐
+         ↓    ↓    ↓     ↓    ↓    ↓     ↓    ↓    ↓
+       Node  Node Node  Node Node Node  Node Node Node
+       App   App  App   App  App  App   App  App  App
+       C1    C2   C3    C1   C2   C3    C1   C2   C3              (C1, C2, C3 are Container 1, Container 2, Container 3)
+
+A Load Balancer could be behind one or more servers.
+A server could be behind one or more containers running the Node.js application.
+1. Load balancer → Server
+   The load balancer can distribute incoming traffic among servers.
+2. Server → container
+   Once a request reaches a server, something on that server/container-platform can determine which container handles it.
+However, the load balancer doesn't necessarily have to first choose a server and then have the server choose a container.
+It can directly know about the container where the request has to be redirected.
+
+Container Registry:
+A container registry is a place where Docker images are stored,
+so that machines/environments can download them and create Containers from them.
+AWS has a service for this called Elastic Container Registry (AWS ECR).
+
+Dockerfile:
+A Dockerfile is basically a file containing the instructions for creating the Docker Image.
+Example:
+Start with Node
+       ↓
+Copy package files
+       ↓
+Install dependencies
+       ↓
+Copy application
+       ↓
+Build application
+       ↓
+Start application
+
+------------------------------------------------------------------------------------------------
+
+CI/CD (Continuous Integration/Continuous Delivery or Deployment):
+Firstly, your own experience in CI/CD. What you have been doing:
+
+Developer code
+      ↓
+     PR
+      ↓
+Merge into main
+      ↓
+┌──────────────────────┐
+│         CI           │
+│                      │
+│ Run pipeline         │
+│ Build                │
+│ Test                 │
+│ Necessary checks     │
+│ (jest, snyk, sonar..)│
+│ Generate artifact    │
+│ (Build #1234)      │
+└──────────┬───────────┘
+           ↓
+┌──────────────────────┐
+│        CD            │
+│                      │
+│ Create Release       │
+│        ↓             │
+│ Deploy to DEV        │
+│        ↓             │
+│ Manual approval      │
+│        ↓             │
+│ Deploy to SQA        │
+└──────────────────────┘
+
+You can think of CI/CD as the bridge between your source code and your running application infrastructure.
+
+"Have you worked with CI/CD?"
+"Yes. In Azure DevOps, after merging a PR into the main branch, I trigger the application's build pipeline from the main branch. 
+The pipeline builds and generates a build artifact with a build id.
+I then create a Release using that specific build, which also deploys it to the Dev environment automatically.
+Deployment to SQA requires a manual deployment/approval step."
+
+Depending on the organization's setup, CD may mean:
+Automatically making a release ready for deployment (Continuous Delivery), or
+Automatically deploying it as well to production (Continuous Deployment).
+In your case, CD still means Continuous Delivery, because only the Dev environment deployment is automated. You still need manual approval for deploying in SQA, PCG & Prod.
+
+------------------------------------------------------------------------------------------------
+
+Jenkins:
+Jenkins is a software that automates tasks in the software delivery process (in CI/CD).
+Just merge the PR to the main branch. Rest all Jenkins can handle from here, till production deployment.
+Let's say you push code in main branch by merging the PR. Jenkins notices the change, and starts its job as a workflow:
+
+Jenkins
+   |
+   ├── 1. Checkout code to main branch
+   |
+   ├── 2. npm install
+   |
+   ├── 3. Run jest tests, snyk, sonar etc
+   |
+   ├── 4. Build the application to generate a Docker Image
+   |
+   ├── 5. Push the Image to Container Registry (AWS ECR etc)
+   |
+   └── 6. Deploy (target environment) (handled by a deployment platform, like Kubernetes, AWS ECS etc)
+           ↓
+         Server
+           ↓
+        Container
+      (Latest Node.js Application with the code changes)
+
+Jenkins is basically orchestrating the steps.
+
+AWS ECS -> Elastic Container Service, AWS service for running and managing Docker Containers.
+
+"How would you containerize a Node.js application?"
+"I would containerize the Node.js application by creating a Dockerfile that defines the environment required to run the application.
+To define the environment, I would choose an appropriate Node.js runtime/version, copy the application's package files (package, package-lock) and install the dependencies, 
+copy the application source codebase, tell it the port the application listens on, and the command to start the application.
+Then I would use that Dockerfile to build a Docker Image.
+That Image can be pushed to a Container Registry, and a Container can be created from that image and deployed to the target environment."
+
+------------------------------------------------------------------------------------------------

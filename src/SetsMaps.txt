@@ -1,0 +1,267 @@
+Set
+
+A Set is a collection of unique values in an object.
+
+const set = new Set();
+set.add(10);
+set.add(20);
+set.add(10);
+console.log(set); // Set(2) {10, 20}
+const set2 = new Set([1, 2, 3, 3, 4]);
+console.log(set2); // Set(4) {1, 2, 3, 4}
+
+Core idea:
+Set = "Have I seen this value before?"
+
+An array can be converted into a Set:
+const arr = [1, 2, 2, 3, 3];
+const unique = [...new Set(arr)];
+console.log(unique); // [1, 2, 3]
+
+
+Set methods:
+
+add(): Adds a value.
+const set = new Set();
+set.add(10);
+set.add(20);
+
+has(): Checks whether a value exists.
+set.has(10); // true
+set.has(50); // false
+
+size: number of items in the set.
+set.size;   // not set.size()
+
+delete(): Returns true if the value existed and was deleted.
+set.delete(10);
+
+clear(): Removes everything.
+set.clear();
+
+Iterating over a Set:
+const set = new Set([10, 20, 30]);
+for (const value of set) {  //for..of
+  console.log(value);
+}
+
+You can also use:
+set.forEach(value => {  //forEach
+  console.log(value);
+});
+
+Common Set Patterns:
+
+Remove duplicates:
+function removeDuplicates(arr) {
+  return [...new Set(arr)];
+}
+
+Detect a duplicate:
+function containsDuplicate(arr) {
+  const seen = new Set();
+  for (const value of arr) {
+    if (seen.has(value)) {
+      return true;
+    }
+    seen.add(value);
+  }
+  return false;
+}
+
+Find first duplicate in an array:
+function firstDuplicate(arr) {
+    const seen = new Set();
+    for(const value of arr) {
+        if(seen.has(value)) {
+            return value;
+        }
+        seen.add(value);
+    }
+    return null;
+}
+
+Intersection of arrays:
+function intersection(arr1, arr2) {
+    const set2 = new Set(arr2);
+    const ans = new Set([]);
+    for(const value of arr1) {
+        if(set2.has(value)) {
+            ans.add(value);
+        }
+    }
+    return [...ans];
+}
+
+Mental model: "Do I only need to know whether I've seen something?" - Set
+
+------------------------------------------------------------------------------------------------
+
+Map
+
+A Map stores key-value pairs in an object.
+
+Choose the thing you need to search for as the Map's key. Put the thing you want to search for as the key.
+
+const map = new Map();
+map.set("apple", 5);
+map.set("banana", 10);
+console.log(map); -> {'apple' => 5, 'banana' => 10}
+
+Creating a Map:
+const map = new Map();
+Or:
+const map = new Map([ ["apple", 5], ["banana", 10] ]);
+
+Map methods:
+
+set(): Adds or updates a key-value pair.
+
+map.set("apple", 5);
+map.set("mango", 11);
+map.set("apple", 10);   -> updates the existing value for 'apple' to 10
+
+get(): Retrieves the value associated with a key
+map.get("apple"); -> 10
+
+has(): Checks whether a key exists
+map.has("apple"); -> true
+
+values(): Returns all values in an object
+map.values(); -> {5, 11, 10}
+
+delete(): Removes a key-value pair
+map.delete("apple");
+
+size: Number of key-value pairs in the Map
+map.size; // not map.size()
+
+clear(): Empties the Map
+map.clear();
+
+Some manual functions which are important in Map:
+
+Check if a value exists in the Map:
+[...map.values()].includes(particularValue);
+
+Get the key of a particular value in the Map:
+[...map.entries()].find(([key, value]) => value === particularValue);
+
+
+Map iteration: 
+for (const [key, value] of map) {   //for..of
+  console.log(key, value);
+}
+
+
+The most important Map pattern:
+Frequency Counter:
+
+const arr = ["apple", "banana", "apple", "orange", "banana", "apple"];
+apple  → 3; banana → 2; orange → 1
+
+function frequency(arr) {
+    const map = new Map();
+    for(const value of arr) {
+        map.set(value, map.get(value) ? map.get(value) + 1 : 1);
+    }
+    return map;
+}
+const ans = frequency(["apple", "banana", "apple", "orange", "banana", "apple", "banana"]);
+console.log(ans);
+
+First Non-Repeating Character (here it's not just asking about the non repeating character, but the 1st one to be like that, that's why Map and not Set):
+input -> "swiss"
+output -> "w"
+
+function nonRepeat(str) {
+    const map = new Map();
+    for(let i = 0; i < str.length; i++) {
+        map.set(str[i], map.get(str[i]) ? map.get(str[i]) + 1 : 1);
+    }
+    for(let i = 0; i < str.length; i++) {
+        if(map.get(str[i]) === 1) {
+            return str[i];
+        }
+    }
+    return null;
+}
+console.log(nonRepeat("swwwwiiixiss"));
+
+or by looping the string using for..of:
+
+function nonRepeat(str) {
+  const map = new Map();
+
+  // First pass: count
+  for (const char of str) {
+    map.set(char, map.get(char) ? map.get(char) + 1 : 1);
+  }
+  // Second pass: find first map with value 1
+  for (const char of str) {
+    if (map.get(char) === 1) {
+      return char;
+    }
+  }
+  return null;
+} 
+console.log(nonRepeat("swwwwiiixiss"));
+
+Two Sum:
+input -> [2, 7, 11, 15], 11
+output -> [0, 1]
+
+function twoSum(nums, target) {
+  const map = new Map();
+  for (let i = 0; i < nums.length; i++) {
+    const complement = target - nums[i];
+    if (map.has(complement)) {
+      return [map.get(complement), i];
+    }
+    map.set(nums[i], i);
+  }
+  return [];
+}
+
+Mental model: "Do I need to remember some information about what I've seen?" - Map
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
