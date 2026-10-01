@@ -1,6 +1,8 @@
 JavaScript:
 synchronous; blocking; single-threaded programming language
 
+------------------------------------------------------------------------------------------------
+
 Callback Hell:
 A situation where deeply nested callbacks make code difficult to read, maintain, error-prone and debug.
 Sequential asynchronous tasks relying on the results of previous tasks.
@@ -111,7 +113,7 @@ function(5) {
 ------------------------------------------------------------------------------------------------
 
 Hoisting:
-Hoisting is JavaScript's behavior of setting up declarations in their scope before execution begins.
+Hoisting is JavaScript's behavior of setting up variables/functions declarations to the top of their scope before their execution begins.
 'var' is initialized with 'undefined', while 'let' and 'const' remain uninitialized in the Temporal Dead Zone (TDZ) until their declaration is evaluated.
 
 Variables and functions appear usable before the line where they’re declared.
@@ -167,7 +169,7 @@ let b = 20;
 console.log(c);
 const c = 30;
 
-During the setup phase of the scope, JavaScript creates bindings for all three:
+During the setup phase of the scope, JavaScript creates 'bindings' for all three:
 
 a → initialized as 'undefined'
 b → created, but uninitialized
