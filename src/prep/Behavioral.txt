@@ -1,0 +1,74 @@
+Stories:
+1. Migrated the user data used to initialize the app from cookies to Couchbase via server.js to tackle authorization issues
+2. Onboarded 7-8 members to the team by providing KT, and guidance and support in the subseqent days
+3. Owned end-to-end sprint delivery by daily checking up on the development and the QA team for their status and any blockers
+4. Managed feature delivery to various lower environments by owning CI/CD deployments
+5. Provided sprint demo at the end of the sprint to multiple stakeholders at client-side
+6. Introduced accessibility feature as per WCAG 2.0 guidelines to make the application ADA compliant and successfully pass the quaterly accessibility audit checks
+
+
+Conflicts:
+1. Always focus on the resolution of the conflict instead of blaming, focusing on drama.
+2. Compare the approaches which are conflicting as per performance, security, accessibility, scalability, maintainability.
+3. Choose the one which passes the above checks by backing up the decision with sources and proofs available officially on the internet.
+4. If they deny, bring the issue in the standup call so that the team can be involved in the decision and resolving the conflict.
+5. Once the conflict is resolved, present that solution to the team in the standup call to avoid re-occurence without blaming/pointing anyone.
+6. In the entire process, never blame anyone, or escalate the drama. Only focus on resolving the conflict.
+
+Conflict example:
+We had to introduce Payments feature in the app. Team Lead said to have 1 component for the feature. Assuming the complexity for the feature,
+I suggested we should have separate components for separate pages. This created a conflict around the final decision of the feature design.
+We agreed on having separate components for separate payment-types since it was a big feature,
+and at the same time not literally having separate components for each page.  
+
+
+Tell me about yourself:
+1. I am a Senior Full Stack Developer, working in Accenture since 5 years and 9 months. This is my first job after graduation.
+2. My current tech stack in work is Angular, Node.js, Express.js and TypeScript.
+3. In my current role, I own end to end sprint delivery, CI/CD deployments, mentoring and supporting my colleagues, and my own development sprint task.
+
+
+Time when you made a mistake:
+1. When the project introduced a policy to add Change Request Number in every PR to track the changes per production deployment,
+I one time missed to add it in my PR, which got merged. I realized this soon after and brought it to the client lead. But a merged PR cannot be reverted back.
+After that started checking if the Change Request is added in the PR as part of the PR review.
+2. When I was new to the team and still learning about Git, I once discarded an incoming change while resolving a merge conflict in my branch.
+This lead to a bug in QA environment. It made me learn how to resolve merge conflics properly and priotize it above my own current changes in the branch.
+
+
+Recent production issue resolved:
+Recently, the team decided to push a feature to production that had already been working in the lower environments for quite some time.
+We needed few environment variables to be set up in the Production Variable Group, which was done before pushing the feature to prod.
+But after the feature was deployed to prod, it did not work as expected, and I was assigned to do the hotfix for it.
+I traced the call which was failiing, and noticed that we added only the relative URL part in the env variable, whereas the application needed the complete endpoint to make the call.
+I figured out that the relative URL gets transformed to the complete URL automatically only in browsers, and Node.js was not able to resolve the URL automatically.
+Once I changed the environment variable value to the complete URL, the call succeeded and the feature worked.
+The main thing I learned from this incident was about Relative vs Absolute URLs and how the browser and Node.js treat them differently.
+
+Why did it work in lower environments then?
+In the lower environments, the absolute URL was provided in the environment variable.
+But in production, we followed the similar approach as other environment variables to maintain consistency, which mostly had relative URLs, but those were getting called from the browser and not from Node.js.
+
+
+Why should we hire you:
+I think there are a few things I can bring to the role.
+1. I have around 6 years of experience working as a full-stack developer,
+    so I can contribute across both the frontend and backend rather than looking at a feature from only one side.
+    I've also been involved in end-to-end delivery, debugging issues, performance and security related work, and supporting production releases.
+2. Along with the technical side, I have experience in taking ownership of work, support and mentor team members, and help the team when someone is stuck.
+3. And lastly, I can also bring stability, where I believe in understanding the product, the team and the systems deeply,
+    and I prefer growing my responsibilities within that environment.
+4. The technologies and responsibilities in this role also align well with my existing experience,
+    while giving me an opportunity to work on areas that are new and would be challenging for me.
+
+
+Do you have any questions:
+1. How has the AI boom impacted the company- positively, negatively, or no significant impact right now?
+2. What is the top thing you want the candidate to solve in this job/role?
+
+
+Why are you looking for a change after ~6 years:
+I have had a long tenure of almost 6 years with my current organisation.
+During this time, I have grown from my initial role as a developer, into taking on responsibilities around delivery, deployment, code reviews and mentoring.
+I'm considering a change now because I feel I am ready for a different environment and broader technical challenges to grow as a senior resource,
+and eventually a capable team lead.
